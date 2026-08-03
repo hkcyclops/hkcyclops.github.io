@@ -113,6 +113,11 @@
           <div class="hint">缴付保费总额</div>
         </div>
         <div class="fld">
+          <label>客户实际自付（反推保费）</label>
+          <input id="outpay" type="number" value="43472" step="1000">
+          <div class="hint">输入客户实际出资，自动反推整付保费（= 自付 ÷（1 − 贷款因子 − 优惠比例））</div>
+        </div>
+        <div class="fld">
           <label>被保人年龄（岁）<b class="badge" id="ageBadge">0 岁</b></label>
           <input id="age" type="number" value="0" step="1" min="0" max="100">
           <input id="ageR" class="slider" type="range" value="0" min="0" max="100" step="1">
@@ -310,6 +315,19 @@ function compute(){
   return {P,ratio,r,rebPct,rebate,method,ccy,N,age,maxYear,loan0,equity,equityPaid,intYear,data,rows};
 }
 
+// 由客户实际自付反推整付保费
+// 推导：equityPaid = P − 贷款本金 − 优惠 = P − P·(data0·ratio/100000) − P·rebPct = P·(1 − 贷款因子 − 优惠比例)
+// 故 P = equityPaid ÷ (1 − 贷款因子 − 优惠比例)，其中 贷款因子 = data0·ratio/100000
+function premiumFromOutpay(outpay){
+  const base = proj[0];                                  // 第1年退保价值（proj/guar 相同 = 56142）
+  const P0 = 100000;                                     // PDF 基准保费
+  const ratio = (+document.getElementById('ratio').value||0)/100;
+  const rebPct = (+document.getElementById('rebate').value||0)/100;
+  const denom = 1 - (base*ratio/P0) - rebPct;           // = equityPaid / P
+  if(denom <= 1e-9) return null;                         // 贷款+优惠已≥保费，无法反推正保费
+  return outpay / denom;
+}
+
 function render(){
   // 依据年龄动态限制结算年度上限（最高显示至 100 岁）
   const ageEl=document.getElementById('age');
@@ -320,6 +338,11 @@ function render(){
   if(+yEl.value>maxYear){ yEl.value=maxYear; yR.value=maxYear; }
   syncControls();
   const c = compute();
+  // 客户实际自付：随保费/比例/优惠联动显示；用户正在输入该框时不回写，避免跳动
+  const outpayEl=document.getElementById('outpay');
+  if(outpayEl && document.activeElement!==outpayEl){
+    outpayEl.value = Math.round(c.equityPaid);
+  }
   document.getElementById('yLabel').textContent = c.N;
   document.getElementById('chartTitle').textContent =
     `累计走势（年度 1–${c.maxYear}　年龄 ${c.age+1}–${c.age+c.maxYear} 岁）`;
@@ -556,6 +579,15 @@ function syncControls(){
   const el=document.getElementById(id);
   el.addEventListener('input', render);
   el.addEventListener('change', render);
+});
+// 客户实际自付 → 反推整付保费
+document.getElementById('outpay').addEventListener('input', ()=>{
+  const v = +document.getElementById('outpay').value || 0;
+  const P = premiumFromOutpay(v);
+  if(P!==null && P>0){
+    document.getElementById('premium').value = Math.round(P);
+  }
+  render();
 });
 render();
 </script>
