@@ -12,9 +12,11 @@
     --good:#1F9D55; --gold:#c79a3a; --shadow:0 6px 24px rgba(26,26,26,.08);
   }
   *{box-sizing:border-box}
+  html,body{width:100%}
   body{margin:0;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans CJK TC",-apple-system,
        "PingFang SC","Microsoft YaHei",sans-serif;
-       background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+       background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
+       overflow-x:hidden}
   /* 頂部紅色品牌條 + 炭黑品牌列（與封面一致） */
   .topbar{height:6px;background:linear-gradient(90deg,var(--aia-red),var(--aia-red-dark))}
   .brandbar{background:var(--charcoal);color:#fff;display:flex;align-items:center;gap:12px;padding:14px 24px}
@@ -113,18 +115,22 @@
   .toggle button.on{background:var(--aia-red);color:#fff;border-color:var(--aia-red)}
   svg{display:block;width:100%;height:auto}
   .foot{text-align:center;color:#aeb6c6;font-size:11.5px;margin-top:26px}
-  /* 手機端適配：品牌列強制單行（隱藏英文副標），標題與長徽章縮字號 */
+  /* 手機端適配：品牌列強制單行（隱藏英文副標），標題省略號收縮，返回按鈕固定不換行；並防橫向溢出 */
   @media(max-width:760px){
-    .brandbar{width:100%;flex-wrap:nowrap;gap:8px;padding:11px 14px;align-items:center}
-    .brandbar .mark{width:28px;height:28px}
-    .brandbar .brand{font-size:14px;line-height:1.1}
+    .wrap{width:100%;padding:18px 14px 50px}
+    .brandbar{width:100%;flex-wrap:nowrap;gap:8px;padding:10px 14px;align-items:center}
+    .brandbar .mark{width:26px;height:26px;flex:0 0 auto}
+    .brandbar .brand{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.1;
+                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .brandbar .brand small{display:none}
-    .brandbar .back{margin-left:auto;padding:5px 11px;font-size:12px;white-space:nowrap}
-    header h1{font-size:18px}
+    .brandbar .back{flex:0 0 auto;margin-left:auto;padding:5px 10px;font-size:11px;white-space:nowrap}
+    header h1{font-size:18px;line-height:1.25}
     header p{font-size:12px}
-    .src{font-size:11px;padding:3px 9px;white-space:normal;line-height:1.5}
+    .src{display:block;max-width:100%;font-size:11px;padding:4px 10px;white-space:normal;line-height:1.5}
     .inputs .row{grid-template-columns:1fr}
     .toggle{flex-wrap:wrap}
+    .scrolly{width:100%;max-width:100%}
+    #chart{width:100%;max-width:100%;overflow:hidden}
   }
 </style>
 </head>

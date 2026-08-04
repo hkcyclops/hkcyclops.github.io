@@ -15,10 +15,12 @@
     --bg:#F5F5F5;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%}
   body{
     font-family:"PingFang TC","Microsoft JhengHei","Noto Sans CJK TC",-apple-system,
                 "PingFang SC","Microsoft YaHei",sans-serif;
     color:var(--ink);background:var(--bg);min-height:100vh;display:flex;flex-direction:column;
+    overflow-x:hidden;
   }
   /* 頂部紅色品牌條 */
   .topbar{height:6px;background:linear-gradient(90deg,var(--aia-red),var(--aia-red-dark))}
@@ -73,14 +75,17 @@
   footer{background:var(--charcoal);color:#cfcfcf;text-align:center;padding:26px 24px;font-size:13px}
   footer a{color:#fff;text-decoration:none;border-bottom:1px solid var(--aia-red);padding-bottom:1px}
   footer .red{color:var(--aia-red)}
-  /* 手機端適配：品牌列強制單行（隱藏英文副標），Hero 標題縮字號 */
+  /* 手機端適配：品牌列強制單行（隱藏英文副標），標題省略號收縮，返回按鈕固定不換行；並防橫向溢出 */
   @media(max-width:760px){
-    header.bar{width:100%;flex-wrap:nowrap;gap:8px;padding:11px 14px;align-items:center}
-    header.bar .brand{font-size:14px;line-height:1.1}
+    header.bar{width:100%;flex-wrap:nowrap;gap:8px;padding:10px 14px;align-items:center}
+    header.bar .mark{width:26px;height:26px;flex:0 0 auto}
+    header.bar .brand{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.1;
+                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     header.bar .brand small{display:none}
-    .hero{padding:56px 20px 64px}
-    .hero h1{font-size:28px}
-    .hero p{font-size:15px}
+    header.bar .back{flex:0 0 auto;margin-left:auto;padding:5px 10px;font-size:11px;white-space:nowrap}
+    .hero{padding:48px 20px 56px}
+    .hero h1{font-size:26px}
+    .hero p{font-size:14px}
   }
 </style>
 </head>
