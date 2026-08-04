@@ -1,65 +1,128 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>保险计算工具</title>
+<title>保險計算工具</title>
 <style>
   :root{
-    --bg:#f5f7fa; --card:#ffffff; --primary:#1f4e79; --accent:#2e86c1;
-    --text:#1f2933; --muted:#6b7280;
+    --aia-red:#C8102E;
+    --aia-red-dark:#9E0C24;
+    --charcoal:#1A1A1A;
+    --ink:#232323;
+    --muted:#6B6B6B;
+    --line:#ECECEC;
+    --bg:#F5F5F5;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
-    font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
-    background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;
+    font-family:"PingFang TC","Microsoft JhengHei","Noto Sans CJK TC",-apple-system,
+                "PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink);background:var(--bg);min-height:100vh;display:flex;flex-direction:column;
   }
-  header{
-    background:linear-gradient(135deg,#1f4e79,#2e86c1);color:#fff;
-    padding:52px 24px 44px;text-align:center;
+  /* 頂部紅色品牌條 */
+  .topbar{height:6px;background:linear-gradient(90deg,var(--aia-red),var(--aia-red-dark))}
+  header.bar{
+    background:var(--charcoal);color:#fff;display:flex;align-items:center;gap:12px;
+    padding:16px 24px;
   }
-  header h1{font-size:30px;font-weight:700;letter-spacing:1px}
-  header p{margin-top:12px;opacity:.92;font-size:15px}
-  main{flex:1;max-width:880px;margin:0 auto;padding:44px 24px;width:100%}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
+  header.bar .mark{
+    width:34px;height:34px;border-radius:8px;background:var(--aia-red);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  header.bar .mark svg{width:20px;height:20px;stroke:#fff}
+  header.bar .brand{font-size:17px;font-weight:700;letter-spacing:.5px}
+  header.bar .brand small{display:block;font-size:11px;font-weight:400;opacity:.7;letter-spacing:2px}
+
+  /* 主視覺 Hero */
+  .hero{
+    position:relative;color:#fff;text-align:center;
+    padding:88px 24px 96px;
+    background-image:linear-gradient(135deg,rgba(158,12,36,.82),rgba(26,26,26,.90)),
+                     url('assets/hero.png');
+    background-size:cover;background-position:center;
+  }
+  .hero .eyebrow{
+    display:inline-block;font-size:13px;letter-spacing:3px;opacity:.85;
+    border:1px solid rgba(255,255,255,.45);padding:5px 14px;border-radius:999px;margin-bottom:20px;
+  }
+  .hero h1{font-size:40px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+  .hero p{margin-top:16px;font-size:17px;opacity:.92}
+  .hero .tag{margin-top:26px;font-size:14px;letter-spacing:4px;opacity:.8}
+
+  /* 卡片區 */
+  main{flex:1;max-width:920px;margin:0 auto;padding:52px 24px;width:100%}
+  .section-title{text-align:center;color:var(--charcoal);font-size:15px;letter-spacing:2px;margin-bottom:28px}
+  .section-title::before,.section-title::after{content:"";display:inline-block;width:28px;height:2px;background:var(--aia-red);vertical-align:middle;margin:0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:26px}
   .card{
-    background:var(--card);border-radius:16px;padding:30px 28px;
-    box-shadow:0 6px 20px rgba(31,78,121,.08);
-    text-decoration:none;color:inherit;display:block;
-    border:1px solid #eef1f5;transition:transform .2s,box-shadow .2s;
+    background:#fff;border-radius:14px;padding:32px 28px;display:block;text-decoration:none;color:inherit;
+    border:1px solid var(--line);border-top:4px solid var(--aia-red);
+    box-shadow:0 6px 22px rgba(26,26,26,.06);transition:transform .2s,box-shadow .2s;
   }
-  .card:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(31,78,121,.16)}
-  .card .icon{font-size:36px;line-height:1}
-  .card h2{margin:16px 0 8px;font-size:20px;color:var(--primary)}
-  .card p{color:var(--muted);font-size:14px;line-height:1.7}
-  .card .go{margin-top:18px;color:var(--accent);font-size:14px;font-weight:600}
-  footer{text-align:center;padding:26px;color:var(--muted);font-size:13px}
-  footer a{color:var(--accent);text-decoration:none}
+  .card:hover{transform:translateY(-5px);box-shadow:0 16px 34px rgba(158,12,36,.16)}
+  .card .icon{
+    width:54px;height:54px;border-radius:12px;background:rgba(200,16,46,.08);
+    color:var(--aia-red);display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+  }
+  .card .icon svg{width:28px;height:28px}
+  .card h2{font-size:21px;color:var(--charcoal);margin-bottom:10px}
+  .card p{font-size:14px;color:var(--muted);line-height:1.8}
+  .card .go{margin-top:20px;color:var(--aia-red);font-weight:700;font-size:14px}
+
+  footer{background:var(--charcoal);color:#cfcfcf;text-align:center;padding:26px 24px;font-size:13px}
+  footer a{color:#fff;text-decoration:none;border-bottom:1px solid var(--aia-red);padding-bottom:1px}
+  footer .red{color:var(--aia-red)}
 </style>
 </head>
 <body>
-<header>
-  <h1>保险计算工具</h1>
-  <p>专业测算 · 保费融资与医疗保险</p>
-</header>
-<main>
-  <div class="grid">
-    <a class="card" href="premium-financing.html">
-      <div class="icon">🧮</div>
-      <h2>1. 保费融资计算器</h2>
-      <p>基于整付保费保单的融资 ROI 场景测算，输入贷款比例、利率与退保价值，快速评估杠杆回报与现金流。</p>
-      <div class="go">进入计算 →</div>
-    </a>
-    <a class="card" href="medical-insurance.html">
-      <div class="icon">🛡️</div>
-      <h2>2. 医疗保险保费计算器</h2>
-      <p>根据不同年龄、保障方案与免赔额，估算医疗险保费，辅助方案对比与销售演示。</p>
-      <div class="go">进入计算 →</div>
-    </a>
-  </div>
-</main>
-<footer>
-  由 GitHub Pages 托管 · <a href="https://github.com/hkcyclops/hkcyclops.github.io">项目源码</a>
-</footer>
+  <div class="topbar"></div>
+
+  <header class="bar">
+    <span class="mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>
+      </svg>
+    </span>
+    <span class="brand">保險計算工具<small>INSURANCE CALCULATORS</small></span>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">專業 · 信賴 · 守護</span>
+    <h1>保險計算工具</h1>
+    <p>保費融資與醫療保險 · 一站式的專業測算</p>
+    <div class="tag">為您的保障規劃提供清晰數據</div>
+  </section>
+
+  <main>
+    <div class="section-title">計算工具</div>
+    <div class="grid">
+      <a class="card" href="premium-financing.html">
+        <span class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/>
+          </svg>
+        </span>
+        <h2>1. 保費融資計算機</h2>
+        <p>基於整付保費保單的融資 ROI 場景測算，輸入貸款比例、利率與退保價值，快速評估槓桿回報與現金流。</p>
+        <div class="go">進入計算 →</div>
+      </a>
+      <a class="card" href="medical-insurance.html">
+        <span class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21s-7-4.5-9.5-9C1 8 3 4.5 6.5 4.5 9 4.5 12 7 12 7s3-2.5 5.5-2.5C21 4.5 23 8 21.5 12 19 16.5 12 21 12 21z"/>
+            <line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/>
+          </svg>
+        </span>
+        <h2>2. 醫療保險保費計算機</h2>
+        <p>根據不同年齡、保障方案與自付額，估算醫療險保費，輔助方案對比與銷售演示。</p>
+        <div class="go">進入計算 →</div>
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    由 <span class="red">GitHub Pages</span> 託管 · <a href="https://github.com/hkcyclops/hkcyclops.github.io">項目源碼</a>
+  </footer>
 </body>
 </html>
