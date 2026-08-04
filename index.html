@@ -73,11 +73,11 @@
   footer{background:var(--charcoal);color:#cfcfcf;text-align:center;padding:26px 24px;font-size:13px}
   footer a{color:#fff;text-decoration:none;border-bottom:1px solid var(--aia-red);padding-bottom:1px}
   footer .red{color:var(--aia-red)}
-  /* 手機端適配：品牌列換行、Hero 標題縮字號 */
+  /* 手機端適配：品牌列強制單行（隱藏英文副標），Hero 標題縮字號 */
   @media(max-width:760px){
-    header.bar{flex-wrap:wrap;gap:8px 10px;padding:12px 16px}
-    header.bar .brand{font-size:14px}
-    header.bar .brand small{font-size:9.5px;letter-spacing:1.5px}
+    header.bar{width:100%;flex-wrap:nowrap;gap:8px;padding:11px 14px;align-items:center}
+    header.bar .brand{font-size:14px;line-height:1.1}
+    header.bar .brand small{display:none}
     .hero{padding:56px 20px 64px}
     .hero h1{font-size:28px}
     .hero p{font-size:15px}
