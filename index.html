@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保险计算工具</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --primary:#1f4e79; --accent:#2e86c1;
+    --text:#1f2933; --muted:#6b7280;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;
+  }
+  header{
+    background:linear-gradient(135deg,#1f4e79,#2e86c1);color:#fff;
+    padding:52px 24px 44px;text-align:center;
+  }
+  header h1{font-size:30px;font-weight:700;letter-spacing:1px}
+  header p{margin-top:12px;opacity:.92;font-size:15px}
+  main{flex:1;max-width:880px;margin:0 auto;padding:44px 24px;width:100%}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
+  .card{
+    background:var(--card);border-radius:16px;padding:30px 28px;
+    box-shadow:0 6px 20px rgba(31,78,121,.08);
+    text-decoration:none;color:inherit;display:block;
+    border:1px solid #eef1f5;transition:transform .2s,box-shadow .2s;
+  }
+  .card:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(31,78,121,.16)}
+  .card .icon{font-size:36px;line-height:1}
+  .card h2{margin:16px 0 8px;font-size:20px;color:var(--primary)}
+  .card p{color:var(--muted);font-size:14px;line-height:1.7}
+  .card .go{margin-top:18px;color:var(--accent);font-size:14px;font-weight:600}
+  footer{text-align:center;padding:26px;color:var(--muted);font-size:13px}
+  footer a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>保险计算工具</h1>
+  <p>专业测算 · 保费融资与医疗保险</p>
+</header>
+<main>
+  <div class="grid">
+    <a class="card" href="premium-financing.html">
+      <div class="icon">🧮</div>
+      <h2>1. 保费融资计算器</h2>
+      <p>基于整付保费保单的融资 ROI 场景测算，输入贷款比例、利率与退保价值，快速评估杠杆回报与现金流。</p>
+      <div class="go">进入计算 →</div>
+    </a>
+    <a class="card" href="medical-insurance.html">
+      <div class="icon">🛡️</div>
+      <h2>2. 医疗保险保费计算器</h2>
+      <p>根据不同年龄、保障方案与免赔额，估算医疗险保费，辅助方案对比与销售演示。</p>
+      <div class="go">进入计算 →</div>
+    </a>
+  </div>
+</main>
+<footer>
+  由 GitHub Pages 托管 · <a href="https://github.com/hkcyclops/hkcyclops.github.io">项目源码</a>
+</footer>
+</body>
+</html>
