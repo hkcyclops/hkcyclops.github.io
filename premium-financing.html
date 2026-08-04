@@ -12,11 +12,10 @@
     --good:#1F9D55; --gold:#c79a3a; --shadow:0 6px 24px rgba(26,26,26,.08);
   }
   *{box-sizing:border-box}
-  html,body{width:100%}
+  html,body{width:100%;overflow-x:clip}
   body{margin:0;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans CJK TC",-apple-system,
        "PingFang SC","Microsoft YaHei",sans-serif;
-       background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
-       overflow-x:hidden}
+       background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
   /* 頂部紅色品牌條 + 炭黑品牌列（與封面一致） */
   .topbar{height:6px;background:linear-gradient(90deg,var(--aia-red),var(--aia-red-dark))}
   .brandbar{background:var(--charcoal);color:#fff;display:flex;align-items:center;gap:12px;padding:14px 24px}
