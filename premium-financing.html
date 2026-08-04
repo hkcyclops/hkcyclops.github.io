@@ -132,6 +132,13 @@
     .scrolly{width:100%;max-width:100%}
     #chart{width:100%;max-width:100%;overflow:hidden}
   }
+  /* iPhone 橫屏：明細表縮小至整表可視（年度→年化回報 全列一眼看全，無需左右滑動） */
+  @media (orientation:landscape) and (max-height:560px){
+    table{font-size:10px}
+    thead th{padding:4px 5px}
+    tbody td{padding:3px 5px}
+    .scrolly{overflow-x:auto}
+  }
 </style>
 </head>
 <body>
