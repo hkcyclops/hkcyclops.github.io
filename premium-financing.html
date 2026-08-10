@@ -142,29 +142,40 @@
   /* 頂部標題 + 右上角市場利率資訊框 */
   .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
   .hero-text{flex:1 1 320px;min-width:0}
-  .ratebox{flex:0 0 auto;width:286px;max-width:100%;
+  .ratebox{flex:0 0 auto;width:306px;max-width:100%;
     background:linear-gradient(135deg,#1A1A1A,#2b2b2b);color:#fff;border-radius:14px;
     padding:14px 16px;box-shadow:var(--shadow);border:1px solid rgba(200,16,46,.35)}
   .ratebox-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;
-    letter-spacing:.5px;margin-bottom:10px}
-  .rb-dot{width:8px;height:8px;border-radius:50%;background:#1F9D55;
-    box-shadow:0 0 0 3px rgba(31,157,85,.25);flex:none}
-  .rb-status{margin-left:auto;font-size:10.5px;font-weight:700;color:#1A1A1A;
-    background:#cfe9d8;padding:2px 9px;border-radius:10px;letter-spacing:.3px}
-  .rb-status.live{background:#bfe6ff;color:#0a3a5a}
-  .rb-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
-    padding:8px 0;border-top:1px solid rgba(255,255,255,.12)}
-  .rb-row:first-of-type{border-top:none}
-  .rb-label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:rgba(255,255,255,.78)}
-  .rb-label small{font-size:10px;opacity:.6;letter-spacing:.5px}
-  .rb-chk{align-self:flex-start;text-decoration:none;font-size:10.5px;font-weight:700;
-    color:#9ec5ff;border:1px solid rgba(158,197,255,.4);padding:1px 7px;border-radius:7px;
-    transition:background .15s,border-color .15s,color .15s}
-  .rb-chk:hover{background:rgba(158,197,255,.18);border-color:rgba(158,197,255,.7);color:#cfe4ff}
-  .rb-chk:active{transform:translateY(1px)}
-  .rb-val{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;
-    font-feature-settings:"tnum";color:#fff;line-height:1}
-  .rb-foot{margin-top:9px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.55)}
+    letter-spacing:.5px;margin-bottom:11px}
+  .rb-dot{width:8px;height:8px;border-radius:50%;background:#c8102e;flex:none}
+  .rb-links{display:flex;gap:8px;margin-bottom:12px}
+  .rb-link{flex:1;text-decoration:none;color:#fff;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px 9px;
+    font-size:11.5px;font-weight:700;line-height:1.3;transition:background .15s,border-color .15s}
+  .rb-link small{display:block;font-size:10px;font-weight:600;opacity:.72;margin-top:2px}
+  .rb-link:hover{background:rgba(200,16,46,.22);border-color:rgba(200,16,46,.6)}
+  .rb-link:active{transform:translateY(1px)}
+  .rb-in{margin-top:9px}
+  .rb-in label{display:block;font-size:11px;color:rgba(255,255,255,.72);margin-bottom:3px}
+  .rb-in input,.rb-in select{width:100%;box-sizing:border-box;background:#fff;color:#1A1A1A;
+    border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:7px 9px;font-size:13px;
+    font-weight:700;font-variant-numeric:tabular-nums}
+  .rb-bank{margin-top:11px;padding:9px 10px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);border-radius:9px;font-size:11px;line-height:1.6;
+    color:rgba(255,255,255,.82)}
+  .rb-bank b{color:#fff;font-weight:700}
+  .rb-bank .bn-note{display:block;margin-top:6px;font-size:10px;opacity:.7;line-height:1.5}
+  .rb-out{margin-top:11px;padding:10px 11px;background:linear-gradient(135deg,rgba(200,16,46,.20),rgba(200,16,46,.06));
+    border:1px solid rgba(200,16,46,.45);border-radius:10px}
+  .rb-out .o-row{display:flex;align-items:baseline;justify-content:space-between;margin:2px 0}
+  .rb-out .o-lab{font-size:11px;color:rgba(255,255,255,.85)}
+  .rb-out .o-val{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff}
+  .rb-out .o-sub{font-size:10px;opacity:.7;margin-bottom:2px}
+  .rb-apply{margin-top:10px;width:100%;border:none;cursor:pointer;
+    background:#c8102e;color:#fff;font-weight:800;font-size:12.5px;padding:9px;border-radius:9px;
+    transition:background .15s}
+  .rb-apply:hover{background:#e01e3c}
+  .rb-apply:active{transform:translateY(1px)}
   @media(max-width:760px){
     .ratebox{width:100%}
   }
@@ -188,24 +199,29 @@
         <p>基於保單利益說明 — 友邦保險（國際）有限公司《環宇盈活儲蓄保險計劃（整付保費）》</p>
         <span class="src">數據來源：PDF 第 14–16 頁 · 整付保費 100,000 · 保單年度 1–100 退保發還金額</span>
       </div>
-      <aside class="ratebox" id="ratebox" aria-label="市場利率資訊">
+      <aside class="ratebox" id="ratebox" aria-label="市場利率與貸款條件">
         <div class="ratebox-h">
-          <span class="rb-dot"></span>市場利率速覽
-          <span class="rb-status" id="rbStatus">參考值</span>
+          <span class="rb-dot"></span>市場利率 · 貸款條件
         </div>
-        <div class="rb-row">
-          <span class="rb-label">HIBOR 1個月<small>HKD</small>
-            <a class="rb-chk" href="https://www.hkab.org.hk/" target="_blank" rel="noopener">香港銀行公會 ↗</a>
-          </span>
-          <span class="rb-val" id="rbHibor">2.61%</span>
+        <div class="rb-links">
+          <a class="rb-link" href="https://www.hkab.org.hk/" target="_blank" rel="noopener">香港銀行公會<small>HIBOR 1個月 ↗</small></a>
+          <a class="rb-link" href="https://www.hsbc.com.hk/zh-hk/investments/market-information/hk/lending-rate/" target="_blank" rel="noopener">滙豐銀行<small>最優惠利率 ↗</small></a>
         </div>
-        <div class="rb-row">
-          <span class="rb-label">最優惠利率<small>大P · 滙豐 HSBC</small>
-            <a class="rb-chk" href="https://www.hsbc.com.hk/zh-hk/investments/market-information/hk/lending-rate/" target="_blank" rel="noopener">滙豐銀行 ↗</a>
-          </span>
-          <span class="rb-val" id="rbPrime">5.00%</span>
+        <div class="rb-in">
+          <label for="inHibor">HIBOR 1個月（%）— 手動輸入</label>
+          <input id="inHibor" type="number" step="0.01" value="2.61" min="0">
         </div>
-        <div class="rb-foot" id="rbFoot">HIBOR 截至 2026-08-11（HKAB 公布）·最優惠利率截至 2026-07-30 維持不變</div>
+        <div class="rb-in">
+          <label for="inPrime">最優惠利率 P（%）— 手動輸入</label>
+          <input id="inPrime" type="number" step="0.01" value="5.00" min="0">
+        </div>
+        <div class="rb-in">
+          <label for="bankSel">貸款銀行</label>
+          <select id="bankSel"></select>
+        </div>
+        <div class="rb-bank" id="rbBank"></div>
+        <div class="rb-out" id="rbOut"></div>
+        <button class="rb-apply" id="rbApply" type="button">套用至融資利率</button>
       </aside>
     </header>
 
@@ -670,8 +686,9 @@ document.querySelectorAll('.legend span[data-key]').forEach(sp=>{
 // slider + number two-way sync
 function syncControls(){
   ['ratio','rebate','rate','year','age'].forEach(id=>{
-    const rng=document.getElementById(id+'R'); if(!rng) return;
-    const min=+rng.min, max=+rng.max, v=+rng.value;
+    const num=document.getElementById(id), rng=document.getElementById(id+'R'); if(!num||!rng) return;
+    const min=+rng.min, max=+rng.max, v=+num.value;
+    rng.value=num.value;                         // 以輸入框為準，同步滑塊
     rng.style.setProperty('--p', Math.max(0,Math.min(100,(v-min)/(max-min)*100))+'%');
     const b=document.getElementById(id+'Badge');
     if(b) b.textContent = (id==='year') ? (v+' 年') : (id==='age') ? (v+' 歲') : (id==='rate') ? ((+v).toFixed(2)+'%') : (v+'%');
@@ -698,46 +715,70 @@ document.getElementById('outpay').addEventListener('input', ()=>{
   render();
 });
 
-// ---- 市場利率資訊框（HIBOR 1M / 滙豐大P）----
-// 說明：瀏覽器端沒有可靠「免密鑰 + 支援跨域(CORS)」的 HIBOR 即時 API（FRED 無 CORS、
-// 銀行網頁為 HTML 且跨域被攔），故預設顯示「準確且註明日期」的參考值。
-// 若要真正即時報價：將 LIVE_RATES_URL 設為你自己架設、支援 CORS 的 JSON API，
-// 回傳格式 { hibor1m: <數值%>, prime: <數值%>, asOf: "YYYY-MM-DD HH:MM" } 即可自動切換為「即時」。
-const LIVE_RATES_URL = null;                 // ← 填上 CORS JSON API 網址即啟用即時更新
-const _ymd = (()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());})();
-const REF_HIBOR = 2.61, REF_PRIME = 5.00;   // 參考值（%），應按最新公布資料更新
-const REF_HIBOR_ASOF = _ymd+'（HKAB 公布）';   // HIBOR 日期＝頁面載入（刷新）日期
-const REF_PRIME_ASOF = _ymd+' 維持不變';        // 最優惠利率＝依最新找到資料更新（非固定常數）
-
-function setRates(hibor, prime, asOf, live){
-  document.getElementById('rbHibor').textContent = (+hibor).toFixed(2)+'%';
-  document.getElementById('rbPrime').textContent = (+prime).toFixed(2)+'%';
-  const st = document.getElementById('rbStatus');
-  const foot = document.getElementById('rbFoot');
-  if(live){
-    st.textContent='即時'; st.classList.add('live');
-    foot.textContent='即時報價 · 更新於 '+(asOf||'—');
-  }else{
-    st.textContent='參考值'; st.classList.remove('live');
-    foot.textContent='HIBOR 截至 '+REF_HIBOR_ASOF+'·最優惠利率截至 '+REF_PRIME_ASOF;
+// ---- 市場利率 / 銀行貸款條件 ----
+// HIBOR 與最優惠利率(P)由使用者手動輸入（點上方按鈕到官方頁核對）；
+// 銀行貸款條件（H+spread、P−spread）由下拉表單讀取，自動算出「參考融資利率」。
+const BANKS = {
+  dahsing: {
+    name: '大新銀行 VIP 客戶 (18–65 歲)',
+    currency: '港元',
+    minLoan: '≥ 港元 50 萬',
+    spreadH: 1.2,            // H + 1.2%
+    spreadP_first5: 2.1,     // 首5年 P − 2.1%
+    tier: '首5年：H+1.2% 或 P−2.1%，以較低者爲準；其後：H+1.2%',
+    note: '客戶必需於放款時（扣除保單首付部份後）及在整個貸款期間內維持資產達港元 $100 萬或等值，方可享以上貸款利率。'
   }
+  // 後續可在此加入其他銀行…
+};
+
+function initBankSelect(){
+  const sel = document.getElementById('bankSel');
+  sel.innerHTML = '';
+  Object.keys(BANKS).forEach(k=>{
+    const o = document.createElement('option');
+    o.value = k; o.textContent = BANKS[k].name;
+    sel.appendChild(o);
+  });
 }
-function loadRates(){
-  if(!LIVE_RATES_URL){ setRates(REF_HIBOR, REF_PRIME, '', false); return; }
-  const ctrl = new AbortController();
-  const to = setTimeout(()=>ctrl.abort(), 6000);   // 6 秒超時，失敗快速回退
-  fetch(LIVE_RATES_URL, {cache:'no-store', signal:ctrl.signal})
-    .then(r=>{ if(!r.ok) throw new Error('http '+r.status); return r.json(); })
-    .then(d=>{
-      const h = (d.hibor1m!=null)? +d.hibor1m : (d.hibor!=null? +d.hibor : null);
-      const p = (d.prime!=null)? +d.prime : null;
-      if(h==null && p==null) throw new Error('no fields');
-      setRates(h!=null?h:REF_HIBOR, p!=null?p:REF_PRIME, d.asOf||'', true);
-    })
-    .catch(()=>{ setRates(REF_HIBOR, REF_PRIME, '', false); })
-    .finally(()=>clearTimeout(to));
+
+function fmtPct(x){ return (Math.round(x*100)/100).toFixed(2)+'%'; }
+
+function calcRefRate(){
+  const H = parseFloat(document.getElementById('inHibor').value) || 0;
+  const P = parseFloat(document.getElementById('inPrime').value) || 0;
+  const b = BANKS[document.getElementById('bankSel').value] || BANKS[Object.keys(BANKS)[0]];
+  const first5 = Math.min(H + b.spreadH, P - b.spreadP_first5);   // 首5年：取較低者
+  const after  = H + b.spreadH;                                   // 其後：H+spread
+  document.getElementById('rbBank').innerHTML =
+    '<div><b>貸款貨幣：</b>'+b.currency+'</div>'+
+    '<div><b>最低貸款：</b>'+b.minLoan+'</div>'+
+    '<div><b>貸款利率：</b>'+b.tier+'</div>'+
+    '<span class="bn-note">'+b.note+'</span>';
+  document.getElementById('rbOut').innerHTML =
+    '<div class="o-row"><span class="o-lab">首5年融資利率</span><span class="o-val">'+fmtPct(first5)+'</span></div>'+
+    '<div class="o-sub">= min( H+'+b.spreadH.toFixed(2)+'% , P−'+b.spreadP_first5.toFixed(2)+'% )</div>'+
+    '<div class="o-row" style="margin-top:8px"><span class="o-lab">其後融資利率</span><span class="o-val">'+fmtPct(after)+'</span></div>'+
+    '<div class="o-sub">= H+'+b.spreadH.toFixed(2)+'%</div>';
+  window.__refFirst5 = first5;   // 供「套用」使用
 }
-loadRates();
+
+function applyRefRate(){
+  if(window.__refFirst5==null) return;
+  const el = document.getElementById('rate');
+  if(!el) return;
+  el.value = (Math.round(window.__refFirst5*100)/100).toFixed(2);
+  render();
+}
+
+['inHibor','inPrime','bankSel'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', calcRefRate);
+  el.addEventListener('change', calcRefRate);
+});
+document.getElementById('rbApply').addEventListener('click', applyRefRate);
+
+initBankSelect();
+calcRefRate();
 render();
 </script>
 </body>
