@@ -28,6 +28,13 @@
   .brandbar .back{margin-left:auto;color:#fff;text-decoration:none;font-size:13px;
        border:1px solid rgba(255,255,255,.35);padding:6px 14px;border-radius:20px}
   .brandbar .back:hover{background:rgba(255,255,255,.12)}
+  /* 黑色導覽條：三個工具互鏈，當前頁高亮 */
+  .subnav{display:flex;gap:4px;flex:1 1 auto;justify-content:center;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .subnav a{color:#cfcfcf;text-decoration:none;font-size:13px;padding:6px 16px;white-space:nowrap;
+       border-radius:999px;flex:0 0 auto;transition:color .15s,background .15s}
+  .subnav a:hover{color:#fff;background:rgba(255,255,255,.10)}
+  .subnav a.active{color:#fff;background:var(--aia-red);font-weight:700}
+  .subnav::-webkit-scrollbar{height:0}
   .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
   .wrap > header{margin-bottom:4px}
   header h1{font-size:23px;margin:0 0 4px;color:var(--charcoal)}
@@ -124,7 +131,8 @@
   /* 手機端適配：品牌列強制單行（隱藏英文副標），標題省略號收縮，返回按鈕固定不換行；並防橫向溢出 */
   @media(max-width:760px){
     .wrap{width:100%;padding:18px 14px 50px}
-    .brandbar{width:100%;flex-wrap:nowrap;gap:8px;padding:10px 14px;align-items:center}
+    .brandbar{width:100%;flex-wrap:wrap;gap:8px;padding:10px 14px;align-items:center}
+  .subnav{flex-basis:100%;order:3;justify-content:center;flex-wrap:wrap;padding:2px 0 4px}
     .brandbar .mark{width:26px;height:26px;flex:0 0 auto}
     .brandbar .brand{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.1;
                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -199,6 +207,11 @@
     </svg>
   </span>
   <span class="brand">保險計算工具<small>INSURANCE CALCULATORS</small></span>
+  <nav class="subnav">
+    <a href="premium-financing.html" class="active">保費融資計算機</a>
+    <a href="medical-insurance.html">醫療保費查詢器</a>
+    <a href="irr-calculator.html">IRR 回報計算機</a>
+  </nav>
   <a class="back" href="index.html">← 返回首頁</a>
 </div>
   <div class="wrap">
