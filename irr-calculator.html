@@ -7,8 +7,9 @@
 <style>
   :root{
     --bg:#f5f6f9; --card:#ffffff; --ink:#21262e; --muted:#6b7488;
-    --line:#e6e9f0; --brand:#C8102E; --brand2:#0a7d7d; --warn:#d6453d;
-    --good:#1f9d55; --gold:#c79a3a; --shadow:0 6px 24px rgba(33,38,46,.08);
+    --line:#e6e9f0; --brand:#C8102E; --brand2:#0a7d7d;
+    --up:#C8102E; --down:#1f9d55;   /* 紅漲綠跌：漲/盈餘=紅，跌/虧損=綠 */
+    --gold:#c79a3a; --shadow:0 6px 24px rgba(33,38,46,.08);
     --aia-red:#C8102E; --aia-red-dark:#9E0C24; --charcoal:#1A1A1A;
   }
   html,body{width:100%}
@@ -75,7 +76,7 @@
   .stat .v{font-size:22px;font-weight:800;letter-spacing:.2px;line-height:1.15}
   .stat .s{font-size:11px;color:#9aa3b5}
   .stat.hl{box-shadow:0 0 0 2px rgba(200,16,46,.30);border-color:#e6a4ad}
-  .v.pos{color:var(--good)} .v.neg{color:var(--warn)} .v.brand{color:var(--brand)} .v.gold{color:var(--gold)}
+  .v.pos{color:var(--up)} .v.neg{color:var(--down)} .v.brand{color:var(--brand)} .v.gold{color:var(--gold)}
   @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:520px){.cards{grid-template-columns:1fr}}
   .chartbox{padding:18px 20px;position:relative}
@@ -94,7 +95,7 @@
   thead th:first-child{text-align:left}
   tbody td{padding:8px 12px;text-align:right;border-bottom:1px solid #f0f2f7;white-space:nowrap}
   tbody td:first-child{text-align:left;color:var(--muted)}
-  .pos{color:var(--good)} .neg{color:var(--warn)}
+  .pos{color:var(--up)} .neg{color:var(--down)}
   .note{font-size:12px;color:var(--muted);background:#f8fafc;border:1px dashed var(--line);
         border-radius:10px;padding:14px 16px;margin-top:18px}
   .note b{color:#33405c}
@@ -221,8 +222,8 @@
     <section class="card chartbox">
       <h2>現金流示意圖</h2>
       <div class="legend">
-        <span><i style="background:#d6453d"></i>現金流出（繳付保費）</span>
-        <span><i style="background:#1f9d55"></i>現金流入（領回價值）</span>
+        <span><i style="background:#1f9d55"></i>現金流出（繳付保費）</span>
+        <span><i style="background:#C8102E"></i>現金流入（領回價值）</span>
       </div>
       <div class="chart-hint">提示：移動鼠標查看各年現金流；最後一年（結算年度）為領回價值，IRR 由這組現金流求解。</div>
       <div id="chart"></div>
@@ -421,7 +422,7 @@ function drawChart(cf, p){
   let bars='';
   for(let i=0;i<n;i++){
     const v=cf[i]; if(v===0) continue;
-    const px=Xc(i), col = v<0?'#d6453d':'#1f9d55';
+    const px=Xc(i), col = v<0?'#1f9d55':'#C8102E';
     const y0=Y(0), y1=Y(v);
     bars+=`<rect class="bar" data-i="${i}" x="${px-bw/2}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y1-y0)}" rx="3" fill="${col}" opacity="0.92"/>`;
   }
@@ -445,7 +446,7 @@ function drawChart(cf, p){
     i=Math.max(0,Math.min(n-1,i));
     const v=cf[i];
     const px=Xc(i);
-    const col = v<0?'#d6453d':(v>0?'#1f9d55':'#9aa3b5');
+    const col = v<0?'#1f9d55':(v>0?'#C8102E':'#9aa3b5');
     const vtxt = v===0?`${p.ccy}0`:`${v<0?'-':''}${p.ccy}${fmt(Math.abs(v))}`;
     tip.innerHTML=`<b>第 ${i} 年</b><div><i style="background:${col}"></i>現金流 ${vtxt}</div>`+
       (i===settle?'<div style="color:#f0c674">結算年度（領回）</div>':'');
