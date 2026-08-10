@@ -32,6 +32,12 @@
   .wrap > header{margin-bottom:4px}
   header h1{font-size:23px;margin:0 0 4px;color:var(--charcoal)}
   header p{margin:0;color:var(--muted);font-size:13px}
+  .hero-tagline{margin:2px 0 0;color:var(--muted);font-size:12.5px;line-height:1.55}
+  .hero-text .src{margin-top:0}
+  .hero-points{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+  .hero-points li{position:relative;padding-left:16px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .hero-points li::before{content:"";position:absolute;left:1px;top:7px;width:6px;height:6px;border-radius:50%;background:var(--aia-red)}
+  .hero-img{width:auto;max-width:400px;max-height:290px;height:auto;margin:10px auto 0;display:block;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.06);object-fit:contain}
   .src{display:inline-block;margin-top:8px;font-size:12px;color:var(--aia-red);background:rgba(200,16,46,.07);
        border:1px solid rgba(200,16,46,.25);padding:4px 10px;border-radius:20px}
   .grid{display:grid;gap:18px;margin-top:22px}
@@ -140,8 +146,10 @@
     .scrolly{overflow-x:auto}
   }
   /* 頂部標題 + 右上角市場利率資訊框 */
-  .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
-  .hero-text{flex:1 1 320px;min-width:0}
+  .hero{display:flex;align-items:stretch;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .hero-text{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:5px;
+    background:var(--card);border:1px solid var(--line);border-top:4px solid var(--aia-red);
+    border-radius:14px;box-shadow:var(--shadow);padding:20px 22px}
   .ratebox{flex:0 0 auto;width:306px;max-width:100%;
     background:linear-gradient(135deg,#1A1A1A,#2b2b2b);color:#fff;border-radius:14px;
     padding:14px 16px;box-shadow:var(--shadow);border:1px solid rgba(200,16,46,.35)}
@@ -178,6 +186,7 @@
   .rb-apply:active{transform:translateY(1px)}
   @media(max-width:760px){
     .ratebox{width:100%}
+    .hero-img{max-width:100%;margin-top:14px}
   }
 </style>
 </head>
@@ -197,7 +206,15 @@
       <div class="hero-text">
         <h1>保費融資（Premium Financing）收益計算機</h1>
         <p>基於保單利益說明 — 友邦保險（國際）有限公司《環宇盈活儲蓄保險計劃（整付保費）》</p>
+        <p class="hero-tagline">輸入保費、貸款成數與銀行利率條件，自動計算客戶實際自付、淨回報與年化收益率（IRR）。</p>
+        <ul class="hero-points">
+          <li>客戶實際自付 — 可由自付金額反推整付保費</li>
+          <li>貸款本金、每年付息 / 利息滚存兩種模式</li>
+          <li>淨回報與年化收益率（IRR）精算</li>
+          <li>對比 H+ 與 P− 融資利率，擇低計費</li>
+        </ul>
         <span class="src">數據來源：PDF 第 14–16 頁 · 整付保費 100,000 · 保單年度 1–100 退保發還金額</span>
+        <img src="assets/aia-hero.jpg" alt="環宇盈活儲蓄保險計劃（整付保費）" class="hero-img">
       </div>
       <aside class="ratebox" id="ratebox" aria-label="市場利率與貸款條件">
         <div class="ratebox-h">
