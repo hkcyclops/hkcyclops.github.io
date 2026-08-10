@@ -139,6 +139,30 @@
     tbody td{padding:3px 5px}
     .scrolly{overflow-x:auto}
   }
+  /* 頂部標題 + 右上角市場利率資訊框 */
+  .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .hero-text{flex:1 1 320px;min-width:0}
+  .ratebox{flex:0 0 auto;width:286px;max-width:100%;
+    background:linear-gradient(135deg,#1A1A1A,#2b2b2b);color:#fff;border-radius:14px;
+    padding:14px 16px;box-shadow:var(--shadow);border:1px solid rgba(200,16,46,.35)}
+  .ratebox-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;
+    letter-spacing:.5px;margin-bottom:10px}
+  .rb-dot{width:8px;height:8px;border-radius:50%;background:#1F9D55;
+    box-shadow:0 0 0 3px rgba(31,157,85,.25);flex:none}
+  .rb-status{margin-left:auto;font-size:10.5px;font-weight:700;color:#1A1A1A;
+    background:#cfe9d8;padding:2px 9px;border-radius:10px;letter-spacing:.3px}
+  .rb-status.live{background:#bfe6ff;color:#0a3a5a}
+  .rb-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+    padding:8px 0;border-top:1px solid rgba(255,255,255,.12)}
+  .rb-row:first-of-type{border-top:none}
+  .rb-label{font-size:12px;color:rgba(255,255,255,.78)}
+  .rb-label small{display:block;font-size:10px;opacity:.6;letter-spacing:.5px;margin-top:1px}
+  .rb-val{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum";color:#fff;line-height:1}
+  .rb-foot{margin-top:9px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.55)}
+  @media(max-width:760px){
+    .ratebox{width:100%}
+  }
 </style>
 </head>
 <body>
@@ -152,12 +176,29 @@
   <span class="brand">保險計算工具<small>INSURANCE CALCULATORS</small></span>
   <a class="back" href="index.html">← 返回首頁</a>
 </div>
-<div class="wrap">
-  <header>
-    <h1>保費融資（Premium Financing）收益計算機</h1>
-    <p>基於保單利益說明 — 友邦保險（國際）有限公司《環宇盈活儲蓄保險計劃（整付保費）》</p>
-    <span class="src">數據來源：PDF 第 14–16 頁 · 整付保費 100,000 · 保單年度 1–100 退保發還金額</span>
-  </header>
+  <div class="wrap">
+    <header class="hero">
+      <div class="hero-text">
+        <h1>保費融資（Premium Financing）收益計算機</h1>
+        <p>基於保單利益說明 — 友邦保險（國際）有限公司《環宇盈活儲蓄保險計劃（整付保費）》</p>
+        <span class="src">數據來源：PDF 第 14–16 頁 · 整付保費 100,000 · 保單年度 1–100 退保發還金額</span>
+      </div>
+      <aside class="ratebox" id="ratebox" aria-label="市場利率資訊">
+        <div class="ratebox-h">
+          <span class="rb-dot"></span>市場利率速覽
+          <span class="rb-status" id="rbStatus">參考值</span>
+        </div>
+        <div class="rb-row">
+          <span class="rb-label">HIBOR 1個月<small>HKD</small></span>
+          <span class="rb-val" id="rbHibor">2.59%</span>
+        </div>
+        <div class="rb-row">
+          <span class="rb-label">最優惠利率<small>大P · 滙豐 HSBC</small></span>
+          <span class="rb-val" id="rbPrime">5.00%</span>
+        </div>
+        <div class="rb-foot" id="rbFoot">HIBOR 截至 2026-08-10（恒生公布）· 大P 截至 2026-07-30 維持不變</div>
+      </aside>
+    </header>
 
   <div class="grid">
     <!-- INPUTS -->
@@ -647,6 +688,46 @@ document.getElementById('outpay').addEventListener('input', ()=>{
   }
   render();
 });
+
+// ---- 市場利率資訊框（HIBOR 1M / 滙豐大P）----
+// 說明：瀏覽器端沒有可靠「免密鑰 + 支援跨域(CORS)」的 HIBOR 即時 API（FRED 無 CORS、
+// 銀行網頁為 HTML 且跨域被攔），故預設顯示「準確且註明日期」的參考值。
+// 若要真正即時報價：將 LIVE_RATES_URL 設為你自己架設、支援 CORS 的 JSON API，
+// 回傳格式 { hibor1m: <數值%>, prime: <數值%>, asOf: "YYYY-MM-DD HH:MM" } 即可自動切換為「即時」。
+const LIVE_RATES_URL = null;                 // ← 填上 CORS JSON API 網址即啟用即時更新
+const REF_HIBOR = 2.59, REF_PRIME = 5.00;   // 參考值（%）
+const REF_HIBOR_ASOF = '2026-08-10（恒生公布）';
+const REF_PRIME_ASOF = '2026-07-30 維持不變';
+
+function setRates(hibor, prime, asOf, live){
+  document.getElementById('rbHibor').textContent = (+hibor).toFixed(2)+'%';
+  document.getElementById('rbPrime').textContent = (+prime).toFixed(2)+'%';
+  const st = document.getElementById('rbStatus');
+  const foot = document.getElementById('rbFoot');
+  if(live){
+    st.textContent='即時'; st.classList.add('live');
+    foot.textContent='即時報價 · 更新於 '+(asOf||'—');
+  }else{
+    st.textContent='參考值'; st.classList.remove('live');
+    foot.textContent='HIBOR 截至 '+REF_HIBOR_ASOF+' · 大P 截至 '+REF_PRIME_ASOF;
+  }
+}
+function loadRates(){
+  if(!LIVE_RATES_URL){ setRates(REF_HIBOR, REF_PRIME, '', false); return; }
+  const ctrl = new AbortController();
+  const to = setTimeout(()=>ctrl.abort(), 6000);   // 6 秒超時，失敗快速回退
+  fetch(LIVE_RATES_URL, {cache:'no-store', signal:ctrl.signal})
+    .then(r=>{ if(!r.ok) throw new Error('http '+r.status); return r.json(); })
+    .then(d=>{
+      const h = (d.hibor1m!=null)? +d.hibor1m : (d.hibor!=null? +d.hibor : null);
+      const p = (d.prime!=null)? +d.prime : null;
+      if(h==null && p==null) throw new Error('no fields');
+      setRates(h!=null?h:REF_HIBOR, p!=null?p:REF_PRIME, d.asOf||'', true);
+    })
+    .catch(()=>{ setRates(REF_HIBOR, REF_PRIME, '', false); })
+    .finally(()=>clearTimeout(to));
+}
+loadRates();
 render();
 </script>
 </body>
