@@ -235,7 +235,7 @@
         </div>
         <div class="rb-links">
           <a class="rb-link" href="https://www.hkab.org.hk/" target="_blank" rel="noopener">香港銀行公會<small>HIBOR 1個月 ↗</small></a>
-          <a class="rb-link" href="https://www.hsbc.com.hk/zh-hk/investments/market-information/hk/lending-rate/" target="_blank" rel="noopener">滙豐銀行<small>最優惠利率 ↗</small></a>
+          <a class="rb-link" href="https://www.dahsing.com/pws/rate-enquiry/other?lang=zh-HK" target="_blank" rel="noopener">大新銀行<small>最優惠利率 ↗</small></a>
         </div>
         <div class="rb-in">
           <label for="inHibor">HIBOR 1個月（%）— 手動輸入</label>
@@ -243,7 +243,7 @@
         </div>
         <div class="rb-in">
           <label for="inPrime">最優惠利率 P（%）— 手動輸入</label>
-          <input id="inPrime" type="number" step="0.01" value="5.00" min="0">
+          <input id="inPrime" type="number" step="0.01" value="5.25" min="0">
         </div>
         <div class="rb-in">
           <label for="bankSel">貸款銀行</label>
@@ -752,11 +752,53 @@ const BANKS = {
   dahsing: {
     name: '大新銀行 VIP 客戶 (18–65 歲)',
     currency: '港元',
-    minLoan: '≥ 港元 50 萬',
+    loanRange: '50萬 - 550萬港元',
+    maxLtv: '退保價值的 87.3%（退保價值需扣除折扣金額(如有)）',
     spreadH: 1.2,            // H + 1.2%
     spreadP_first5: 2.1,     // 首5年 P − 2.1%
+    spreadP_after: null,     // 其後不適用 P−，僅 H+1.2%
     tier: '首5年：H+1.2% 或 P−2.1%，以較低者爲準；其後：H+1.2%',
-    note: '客戶必需於放款時（扣除保單首付部份後）及在整個貸款期間內維持資產達港元 $100 萬或等值，方可享以上貸款利率。'
+    aum: '客戶必需於放款時（扣除保單首付部份後）及在整個貸款期間內維持資產達港元 $100 萬或等值，方可享以上貸款利率。',
+    note: '成立費：豁免；VIP 銀行客戶（18–65 歲）方可享以上貸款利率。'
+  },
+  orix: {
+    name: 'ORIX Asia Limited 歐力士（亞洲）有限公司',
+    currency: '港元',
+    loanRange: '50萬 - 2000萬港元',
+    maxLtv: '退保價值的 95%',
+    spreadH: 1.75,           // 1個月 H + 1.75%
+    spreadP_first5: 0.75,    // P − 0.75%
+    spreadP_after: 0.75,     // 全程適用 P−0.75%（與首5年相同）
+    tier: '保費融資：1個月 H+1.75% 或 P−0.75%，以較低者爲準（全程適用）',
+    establishmentFee: 1.00,  // 成立費 1.00%
+    aum: '無 AUM 要求',
+    note: '其他資料：貸款期 + 受保人年齡 ≤ 80。'
+  },
+  xiangxiang: {
+    name: '象象銀行（貸款額 < 100萬港元）',
+    currency: 'HKD',
+    loanRange: '不設最低金額（貸款額 &lt; 100萬港元）',
+    maxLtv: '保證退保價值的 95%',
+    spreadH: 1.35,           // 1個月 H + 1.35%
+    spreadP_first5: 1.0,     // P − 1.0%
+    spreadP_after: 1.0,      // 全程適用 P−1.0%（與首同）
+    tier: '保費融資：1個月 H+1.35% 或 P−1.00%，以較低者爲準（全程適用）',
+    annualFee: 0.25,         // 年費 0.25%（每年收取）
+    aum: '無 AUM 要求',
+    note: '其他資料：① 貨幣 HKD；② 審批匯率 USD1 : HKD 7.75；③ 最長貸款年期 10 年；④ (貸款期 + 受保人年齡) ≤ 75；⑤ 單一客戶最多貸款額 5,000 萬港元（以 10 張保單爲限）。'
+  },
+  xiangxiang2: {
+    name: '象象銀行（貸款額 100萬 - 5000萬港元）',
+    currency: 'HKD',
+    loanRange: '100萬 - 5000萬港元',
+    maxLtv: '保證退保價值的 95%',
+    spreadH: 1.0,            // 1個月 H + 1.0%
+    spreadP_first5: 1.0,     // P − 1.0%
+    spreadP_after: 1.0,      // 全程適用 P−1.0%
+    tier: '保費融資：1個月 H+1.00% 或 P−1.00%，以較低者爲準（全程適用）',
+    annualFee: 0.25,         // 年費 0.25%（每年收取）
+    aum: '無 AUM 要求',
+    note: '其他資料：① 貨幣 HKD；② 審批匯率 USD1 : HKD 7.75；③ 最長貸款年期 10 年；④ (貸款期 + 受保人年齡) ≤ 75；⑤ 單一客戶最多貸款額 5,000 萬港元（以 10 張保單爲限）。'
   }
   // 後續可在此加入其他銀行…
 };
@@ -777,18 +819,42 @@ function calcRefRate(){
   const H = parseFloat(document.getElementById('inHibor').value) || 0;
   const P = parseFloat(document.getElementById('inPrime').value) || 0;
   const b = BANKS[document.getElementById('bankSel').value] || BANKS[Object.keys(BANKS)[0]];
-  const first5 = Math.min(H + b.spreadH, P - b.spreadP_first5);   // 首5年：取較低者
-  const after  = H + b.spreadH;                                   // 其後：H+spread
-  document.getElementById('rbBank').innerHTML =
-    '<div><b>貸款貨幣：</b>'+b.currency+'</div>'+
-    '<div><b>最低貸款：</b>'+b.minLoan+'</div>'+
-    '<div><b>貸款利率：</b>'+b.tier+'</div>'+
-    '<span class="bn-note">'+b.note+'</span>';
-  document.getElementById('rbOut').innerHTML =
-    '<div class="o-row"><span class="o-lab">首5年融資利率</span><span class="o-val">'+fmtPct(first5)+'</span></div>'+
-    '<div class="o-sub">= min( H+'+b.spreadH.toFixed(2)+'% , P−'+b.spreadP_first5.toFixed(2)+'% )</div>'+
-    '<div class="o-row" style="margin-top:8px"><span class="o-lab">其後融資利率</span><span class="o-val">'+fmtPct(after)+'</span></div>'+
-    '<div class="o-sub">= H+'+b.spreadH.toFixed(2)+'%</div>';
+  const fee = (typeof b.annualFee === 'number') ? b.annualFee : 0;   // 年費（每年收取）計入融資利率
+  const first5 = Math.min(H + b.spreadH, P - b.spreadP_first5) + fee;  // 首5年：取較低者 + 年費
+  const after  = (b.spreadP_after != null)
+                 ? Math.min(H + b.spreadH, P - b.spreadP_after) + fee   // 其後仍適用 P−（如 ORIX 全程相同）
+                 : (H + b.spreadH) + fee;                              // 其後僅 H+spread（如大新）
+  // 銀行資料框：依各銀行字段動態展示
+  let bhtml = '';
+  if(b.loanRange)     bhtml += '<div><b>貸款額：</b>'+b.loanRange+'</div>';
+  if(b.maxLtv)        bhtml += '<div><b>最高貸款比例：</b>'+b.maxLtv+'</div>';
+  bhtml += '<div><b>貸款利率：</b>'+b.tier+'</div>';
+  if(b.establishmentFee != null){
+    const ef = (typeof b.establishmentFee === 'number') ? b.establishmentFee.toFixed(2)+'%' : b.establishmentFee;
+    bhtml += '<div><b>成立費：</b>'+ef+'</div>';
+  }
+  if(b.annualFee != null){
+    const af = (typeof b.annualFee === 'number') ? b.annualFee.toFixed(2)+'%（每年收取）' : b.annualFee;
+    bhtml += '<div><b>年費：</b>'+af+'</div>';
+  }
+  if(b.aum)            bhtml += '<div><b>AUM 要求：</b>'+b.aum+'</div>';
+  if(b.note)           bhtml += '<span class="bn-note">'+b.note+'</span>';
+  document.getElementById('rbBank').innerHTML = bhtml;
+  // 參考融資利率輸出：大新（spreadP_after=null）分列首5年/其後；其餘銀行利率恆定，僅列單一「融資利率」
+  const feeSub = fee ? (' + 年費'+fee.toFixed(2)+'%') : '';
+  let outHtml;
+  if(b.spreadP_after == null){
+    outHtml =
+      '<div class="o-row"><span class="o-lab">首5年融資利率</span><span class="o-val">'+fmtPct(first5)+'</span></div>'+
+      '<div class="o-sub">= min( H+'+b.spreadH.toFixed(2)+'% , P−'+b.spreadP_first5.toFixed(2)+'% )'+feeSub+'</div>'+
+      '<div class="o-row" style="margin-top:8px"><span class="o-lab">其後融資利率</span><span class="o-val">'+fmtPct(after)+'</span></div>'+
+      '<div class="o-sub">= H+'+b.spreadH.toFixed(2)+'%'+feeSub+'</div>';
+  } else {
+    outHtml =
+      '<div class="o-row"><span class="o-lab">融資利率</span><span class="o-val">'+fmtPct(first5)+'</span></div>'+
+      '<div class="o-sub">= min( H+'+b.spreadH.toFixed(2)+'% , P−'+b.spreadP_first5.toFixed(2)+'% )'+feeSub+'</div>';
+  }
+  document.getElementById('rbOut').innerHTML = outHtml;
   window.__refFirst5 = first5;   // 供「套用」使用
 }
 
