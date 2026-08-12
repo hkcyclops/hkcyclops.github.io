@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>按揭贷款计算器 · 等额本息 / 等额本金</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#1d2433; --muted:#6b7488;
+    --line:#e4e8f0; --brand:#C8102E; --brand2:#1F9D55; --warn:#9E0C24;
+    --good:#1f9d55; --gold:#c79a3a; --shadow:0 6px 24px rgba(26,26,26,.08);
+    --aia-red:#C8102E; --aia-red-dark:#9E0C24; --charcoal:#1A1A1A;
+  }
+  *{box-sizing:border-box}
+  html,body{width:100%}
+  body{margin:0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
+       overflow-x:clip}
+  /* 頂部紅色品牌條 + 炭黑品牌列（與封面一致） */
+  .topbar{height:6px;background:linear-gradient(90deg,var(--aia-red),var(--aia-red-dark))}
+  .brandbar{background:var(--charcoal);color:#fff;display:flex;align-items:center;gap:12px;padding:14px 24px}
+  .brandbar .mark{width:32px;height:32px;border-radius:8px;background:var(--aia-red);
+       display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .brandbar .mark svg{width:19px;height:19px;stroke:#fff}
+  .brandbar .brand{font-size:16px;font-weight:700;letter-spacing:.5px}
+  .brandbar .brand small{display:block;font-size:10.5px;font-weight:400;opacity:.7;letter-spacing:2px}
+  .brandbar .back{margin-left:auto;color:#fff;text-decoration:none;font-size:13px;
+       border:1px solid rgba(255,255,255,.35);padding:6px 14px;border-radius:20px}
+  .brandbar .back:hover{background:rgba(255,255,255,.12)}
+  /* 黑色導覽條：工具互鏈，當前頁高亮 */
+  .subnav{display:flex;gap:4px;flex:1 1 auto;justify-content:center;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .subnav a{color:#cfcfcf;text-decoration:none;font-size:13px;padding:6px 16px;white-space:nowrap;
+       border-radius:999px;flex:0 0 auto;transition:color .15s,background .15s}
+  .subnav a:hover{color:#fff;background:rgba(255,255,255,.10)}
+  .subnav a.active{color:#fff;background:var(--aia-red);font-weight:700}
+  .subnav::-webkit-scrollbar{height:0}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 60px}
+  header h1{font-size:23px;margin:0 0 4px;color:var(--brand)}
+  header p{margin:0;color:var(--muted);font-size:13px}
+  .src{display:inline-block;margin-top:8px;font-size:12px;color:#9E0C24;background:#fdeced;
+       border:1px solid #f6c9cf;padding:4px 10px;border-radius:20px}
+  .grid{display:grid;gap:18px;margin-top:22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .inputs{padding:20px 22px}
+  .inputs h2{font-size:15px;margin:0 0 16px;display:flex;align-items:center;gap:8px}
+  .inputs h2::before{content:"";width:4px;height:16px;background:var(--brand);border-radius:3px}
+  .toggle{display:flex;gap:8px;margin-bottom:18px}
+  .toggle button{padding:9px 18px;border:1px solid var(--line);background:#fff;border-radius:10px;
+        font-size:13px;color:var(--muted);cursor:pointer;font-weight:600}
+  .toggle button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px 22px}
+  .fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .fld input,.fld select{width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--line);
+       border-radius:9px;background:#fbfcfe;color:var(--ink);outline:none}
+  .fld input:focus,.fld select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(200,16,46,.12)}
+  .fld .badge{float:right;font-size:12px;font-weight:700;color:var(--brand);
+    background:rgba(200,16,46,.1);padding:1px 9px;border-radius:10px}
+  .hint{font-size:11.5px;color:#9aa3b5;margin-top:4px}
+  .slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border:none;padding:0;margin:10px 0 0;
+    border-radius:3px;outline:none;cursor:pointer;
+    background:linear-gradient(90deg,var(--brand) 0%,var(--brand) var(--p,50%),#e6ebf5 var(--p,50%),#e6ebf5 100%)}
+  .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;
+    background:#fff;border:3px solid var(--brand);box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer}
+  .slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;
+    border:3px solid var(--brand);cursor:pointer}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:6px}
+  .cgroup{display:flex;flex-direction:column;gap:12px;
+          background:#fafbfe;border:1px solid var(--line);border-radius:14px;padding:14px 14px 16px}
+  .cgroup .gh{font-size:12px;font-weight:700;letter-spacing:.5px;color:#fff;
+              display:inline-block;padding:3px 12px;border-radius:20px;align-self:flex-start}
+  .gh.struct{background:linear-gradient(90deg,#3a3a3a,#1A1A1A)}
+  .gh.result{background:linear-gradient(90deg,#C8102E,#9E0C24)}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 14px;
+        display:flex;flex-direction:column;gap:2px}
+  .stat .k{font-size:12px;color:var(--muted)}
+  .stat .v{font-size:22px;font-weight:800;letter-spacing:.2px;line-height:1.15}
+  .stat .s{font-size:11px;color:#9aa3b5}
+  .stat.hl{box-shadow:0 0 0 2px rgba(200,16,46,.25);border-color:#e6a4ad}
+  .v.brand{color:var(--brand)} .v.warn{color:var(--warn)} .v.gold{color:var(--gold)}
+  .v.good{color:var(--good)}
+  @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.cards{grid-template-columns:1fr}}
+  /* 結果總覽：左側兩行 stat + 右側本金vs利息環狀圖 */
+  .summary{display:flex;gap:18px;align-items:stretch;flex-wrap:wrap}
+  .sumstats{flex:1 1 440px;display:flex;flex-direction:column;gap:13px;min-width:300px}
+  .sumrow{display:flex;flex-direction:column;gap:7px}
+  .sumrow .gh{font-size:12px;font-weight:700;letter-spacing:.5px;color:#fff;
+              display:inline-block;padding:3px 12px;border-radius:20px;align-self:flex-start}
+  .gh.struct{background:linear-gradient(90deg,#3a3a3a,#1A1A1A)}
+  .gh.result{background:linear-gradient(90deg,#C8102E,#9E0C24)}
+  .sumrow .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px}
+  .donut{flex:0 0 250px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+         background:#fafbfe;border:1px solid var(--line);border-radius:14px;padding:10px 10px 12px}
+  .donut .dt{font-size:12.5px;color:var(--muted);margin-bottom:2px}
+  .donutChart{position:relative;width:100%;max-width:220px;margin:0 auto}
+  .donut .seg{transition:transform .15s ease,opacity .15s ease;transform-origin:110px 102px;cursor:pointer}
+  .donut .dlegend{display:flex;gap:18px;margin-top:12px;font-size:12.5px;color:var(--muted);flex-wrap:wrap;justify-content:center}
+  .donut .dlegend span{display:inline-flex;align-items:center;gap:6px}
+  .donut .dlegend i{width:13px;height:13px;border-radius:3px;display:inline-block;flex:none}
+  .donut .dlegend b{color:var(--ink);font-weight:700}
+  /* 結果行表頭 + 複製按鈕 */
+  .sumrow .hd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .copyBtn{padding:4px 13px;font-size:12px;border:1px solid var(--brand);color:var(--brand);
+       background:#fff;border-radius:8px;cursor:pointer;font-weight:700;white-space:nowrap;transition:all .15s}
+  .copyBtn:hover{background:var(--brand);color:#fff}
+  .copyBtn.done{background:var(--brand2);border-color:var(--brand2);color:#fff}
+  @media(max-width:760px){
+    .donut{flex:1 1 100%}
+    .sumstats{flex:1 1 100%}
+  }
+  .chartbox{padding:18px 20px;position:relative}
+  .chartbox h2,.tblbox h2{font-size:15px;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+  .chartbox h2::before,.tblbox h2::before{content:"";width:4px;height:16px;background:var(--brand2);border-radius:3px}
+  #chart{position:relative;width:100%}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:6px 0 10px}
+  .legend i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .legend span{cursor:pointer;user-select:none;transition:opacity .15s;display:inline-flex;align-items:center}
+  .legend span.off{opacity:.35;text-decoration:line-through}
+  .chart-hint{font-size:11.5px;color:#9aa3b5;margin:2px 0 0}
+  .tip{position:absolute;pointer-events:none;background:#0f172a;color:#fff;padding:9px 11px;
+       border-radius:9px;font-size:12px;line-height:1.6;z-index:6;box-shadow:0 8px 22px rgba(0,0,0,.22);min-width:150px}
+  .tip b{display:block;margin-bottom:4px;font-size:12.5px;font-weight:700}
+  .tip div{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .tip i{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none}
+  .tblbox{padding:18px 20px}
+  .scrolly{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  thead th{position:sticky;top:0;background:#eef2f7;color:#1d2433;font-weight:700;
+          padding:10px 14px;text-align:right;white-space:nowrap;border-bottom:2px solid var(--line);
+          font-variant-numeric:tabular-nums}
+  thead th:first-child{text-align:center}
+  tbody td{padding:9px 14px;text-align:right;border-bottom:1px solid #eef1f6;white-space:nowrap;
+          font-variant-numeric:tabular-nums;font-weight:600;color:#1d2433;letter-spacing:.2px}
+  tbody td:first-child{text-align:center;color:var(--muted);font-weight:600}
+  tbody tr.hl{background:#fdeced}
+  tbody tr.hl td{font-weight:800}
+  tbody tr.hl td{font-weight:600}
+  .pr{color:var(--brand)} .ir{color:var(--warn)} .bal{color:var(--brand2)}
+  .note{font-size:12px;color:var(--muted);background:#f8fafc;border:1px dashed var(--line);
+        border-radius:10px;padding:14px 16px;margin-top:18px}
+  .note b{color:#33405c}
+  .tblbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .tblbar .toggle{margin-bottom:0}
+  svg{display:block;width:100%;height:auto}
+  .foot{text-align:center;color:#aeb6c6;font-size:11.5px;margin-top:26px}
+  /* 手機端：品牌列強制單行，導覽連結換行至第二行 */
+  @media(max-width:760px){
+    .brandbar{width:100%;flex-wrap:wrap;gap:8px;padding:10px 14px;align-items:center}
+    .brandbar .mark{width:26px;height:26px;flex:0 0 auto}
+    .brandbar .brand{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.1;
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brandbar .brand small{display:none}
+    .brandbar .back{flex:0 0 auto;margin-left:auto;padding:5px 10px;font-size:11px;white-space:nowrap}
+    .subnav{flex-basis:100%;order:3;justify-content:center;flex-wrap:wrap;padding:2px 0 4px}
+  }
+</style>
+<!-- SheetJS：導出真正的 .xlsx（CDN 加載，離線時自動降級為 CSV） -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="topbar"></div>
+<div class="brandbar">
+  <span class="mark">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>
+    </svg>
+  </span>
+  <span class="brand">保險計算工具<small>INSURANCE CALCULATORS</small></span>
+  <nav class="subnav">
+    <a href="premium-financing.html">保費融資計算機</a>
+    <a href="medical-insurance.html">醫療保費查詢器</a>
+    <a href="irr-calculator.html">IRR 回報計算機</a>
+    <a href="mortgage-calculator.html" class="active">按揭貸款計算機</a>
+  </nav>
+  <a class="back" href="index.html">← 返回首頁</a>
+</div>
+
+<div class="wrap">
+  <header>
+    <h1>按揭贷款计算器</h1>
+    <p>等额本息 / 等额本金 · 逐月明细与还款走势</p>
+    <span class="src">纯数值计算，不绑定任何银行或贷款产品；直接输入贷款参数即可</span>
+  </header>
+
+  <div class="grid">
+    <!-- 参数输入 -->
+    <section class="card inputs">
+      <h2>贷款参数</h2>
+      <div class="toggle">
+        <button id="mEqual" class="on" onclick="setMode('equal')">等额本息</button>
+        <button id="mPrincipal" onclick="setMode('principal')">等额本金</button>
+      </div>
+      <div class="row">
+        <div class="fld">
+          <label class="req" style="color:var(--muted)">贷款总额</label>
+          <input id="loan" type="number" value="1000000" step="10000" min="0" max="50000000">
+          <input id="loanR" class="slider" type="range" value="1000000" min="0" max="10000000" step="10000">
+          <div class="hint">向银行借入的本金总额</div>
+        </div>
+        <div class="fld">
+          <label>年利率（%）<b class="badge" id="rateBadge">4.10%</b></label>
+          <input id="rate" type="number" value="4.1" step="0.05" min="0" max="20">
+          <input id="rateR" class="slider" type="range" value="4.1" min="0" max="10" step="0.05">
+          <div class="hint">贷款年利率，如 LPR + 加点</div>
+        </div>
+        <div class="fld">
+          <label>贷款年限（年）<b class="badge" id="termBadge">30 年</b></label>
+          <input id="term" type="number" value="30" step="1" min="1" max="50">
+          <input id="termR" class="slider" type="range" value="30" min="1" max="50" step="1">
+          <div class="hint">还款总期数 = 年限 × 12 个月</div>
+        </div>
+        <div class="fld">
+          <label>货币符号</label>
+          <select id="ccy">
+            <option value="¥" selected>¥（人民币）</option>
+            <option value="HK$">HK$（港元）</option>
+            <option value="US$">US$（美元）</option>
+          </select>
+          <div class="hint">仅显示符号，不影响计算</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 结果总览 -->
+    <section class="card inputs">
+      <h2>还款总览 — <span id="modeLabel" style="color:var(--brand)">等额本息</span></h2>
+      <div class="summary" id="cards"></div>
+    </section>
+
+    <!-- 还款走势图 -->
+    <section class="card chartbox">
+      <h2>还款走势（互动图表）</h2>
+      <div class="legend">
+        <span data-key="cumPr" class="off"><i style="background:#C8102E"></i>累计还本</span>
+        <span data-key="cumIr" class="off"><i style="background:#1A1A1A"></i>累计付息</span>
+        <span data-key="bal"><i style="background:#d4a23c"></i>剩余本金</span>
+      </div>
+      <div class="chart-hint">提示：移动鼠标查看任意月份的还款明细；点击图表可定位到该月。</div>
+      <div id="chart"></div>
+    </section>
+
+    <!-- 还款明细表 -->
+    <section class="card tblbox">
+      <h2>还款明细表</h2>
+      <div class="tblbar">
+        <span style="font-size:12.5px;color:var(--muted)">显示方式：</span>
+        <div class="toggle">
+          <button id="vMonth" class="on" onclick="setView('month')">逐月明细</button>
+          <button id="vYear" onclick="setView('year')">年度汇总</button>
+        </div>
+        <button class="copyBtn" style="margin-left:auto" onclick="exportExcel()">⬇ 导出 Excel</button>
+      </div>
+      <div class="scrolly">
+        <table id="tbl">
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="note">
+      <b>计算口径说明：</b><br>
+      1. <b>等额本息</b>：每月还款额固定。月供 = 本金 × 月利率 × (1+月利率)<sup>期数</sup> ÷ [(1+月利率)<sup>期数</sup> − 1]；其中月利率 = 年利率 ÷ 12，期数 = 年限 × 12。每月还款中利息逐月递减、本金逐月递增，总额不变。<br>
+      2. <b>等额本金</b>：每月偿还等额本金（= 贷款总额 ÷ 期数），另加当月剩余本金产生的利息。月供逐月递减，首月最高、末月最低。<br>
+      3. <b>月利率</b> = 年利率 ÷ 12（按月计息，与国内银行通行口径一致）；若年利率为 0，则不产生利息，月供 = 本金 ÷ 期数。<br>
+      4. <b>总还款额</b> = 月还款额 × 期数（等额本息）或 各月供之和（等额本金）；<b>总利息</b> = 总还款额 − 贷款总额。本金（贷款总额）与利息在「本金 vs 利息」环状图中按占比展示。<br>
+      5. 明细表「逐月」显示每一期，「年度汇总」将每年 12 个月合并（年还本、年付息、年末剩余本金）。点击图表可在对应月份定位高亮。<br>
+      6. 本工具为纯数值测算，未计入提前还款、利率调整、手续费、税费及保险等，不构成财务建议。
+    </div>
+  </div>
+
+  <div class="foot">按揭贷款计算器 · 等额本息 / 等额本金 · 纯数值输入</div>
+</div>
+
+<script>
+let mode = 'equal';   // equal | principal
+let view = 'month';   // month | year
+let lastC = null;     // 最近一次計算結果（供複製用）
+
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const fmt2 = n => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function pct(n,d=2){ return (n*100).toFixed(d)+'%'; }
+
+// ===== 核心计算 =====
+function compute(){
+  const P = Math.max(0, +document.getElementById('loan').value||0);
+  const annualRate = Math.max(0, +document.getElementById('rate').value||0)/100;
+  const years = Math.max(1, Math.min(50, +document.getElementById('term').value||1));
+  const ccy = document.getElementById('ccy').value || '';
+  const n = years * 12;           // 总期数
+  const r = annualRate / 12;      // 月利率
+
+  let monthlyPayment;             // 等额本息月供（固定）
+  if(r === 0){
+    monthlyPayment = P / n;
+  } else {
+    const f = Math.pow(1+r, n);
+    monthlyPayment = P * r * f / (f - 1);
+  }
+
+  // 逐月计算
+  const months = [];
+  let bal = P, cumPr = 0, cumIr = 0, cumPay = 0;
+  for(let i=1; i<=n; i++){
+    let mp, pr, ir;   // 月供、本金、利息
+    if(mode === 'equal'){
+      ir = bal * r;
+      pr = monthlyPayment - ir;
+      mp = monthlyPayment;
+    } else {
+      pr = P / n;              // 每月固定本金
+      ir = bal * r;
+      mp = pr + ir;
+    }
+    // 末期修正：本金不超过剩余余额（防止浮点误差）
+    if(pr > bal) pr = bal;
+    bal = Math.max(0, bal - pr);
+    cumPr += pr; cumIr += ir; cumPay += mp;
+    months.push({m:i, mp, pr, ir, bal, cumPr, cumIr, cumPay});
+  }
+
+  const totalPay = cumPay;
+  const totalIr = cumIr;
+  const totalPr = cumPr;
+  const irRatio = totalPay>0 ? totalIr/totalPay : 0;
+  const firstMP = months[0] ? months[0].mp : 0;
+  const lastMP = months[n-1] ? months[n-1].mp : 0;
+  const monthlyDec = mode==='principal' ? firstMP - lastMP : 0;
+
+  return {P,annualRate,years,ccy,n,r,monthlyPayment,months,
+          totalPay,totalIr,totalPr,irRatio,firstMP,lastMP,monthlyDec};
+}
+
+// ===== 等额本息 / 等额本金 切换 =====
+function setMode(m){
+  mode = m;
+  document.getElementById('mEqual').classList.toggle('on', m==='equal');
+  document.getElementById('mPrincipal').classList.toggle('on', m==='principal');
+  document.getElementById('modeLabel').textContent = m==='equal' ? '等额本息' : '等额本金';
+  render();
+}
+
+// ===== 逐月 / 年度 切换 =====
+function setView(v){
+  view = v;
+  document.getElementById('vMonth').classList.toggle('on', v==='month');
+  document.getElementById('vYear').classList.toggle('on', v==='year');
+  render();
+}
+
+// ===== 渲染 =====
+function render(){
+  setFills();
+  const c = compute();
+  lastC = c;
+
+  // ---- 结果卡片（左：兩行 stat；右：本金vs利息環狀圖）----
+  const gStruct = [
+    {k:'贷款总额', v:`${c.ccy}${fmt(c.P)}`, s:'借入本金', c:'brand', hl:false},
+    {k:'还款期数', v:`${c.n} 期`, s:`${c.years} 年 × 12 月`, c:'', hl:false},
+    {k:'月利率', v:c.r>0?pct(c.r,4):'0', s:`年利率 ${(c.annualRate*100).toFixed(2)}% ÷ 12`, c:'', hl:false},
+  ];
+  let gResult;
+  if(mode==='equal'){
+    // 等额本息：月还款额、总还款额、总利息
+    gResult = [
+      {k:'月还款额', v:`${c.ccy}${fmt2(c.monthlyPayment)}`, s:'每月相同', c:'brand', hl:true},
+      {k:'总还款额', v:`${c.ccy}${fmt(c.totalPay)}`, s:`${c.n} 期 × 月还款额`, c:'', hl:false},
+      {k:'总利息', v:`${c.ccy}${fmt(c.totalIr)}`, s:'总还款额 − 贷款总额', c:'warn', hl:false},
+    ];
+  } else {
+    // 等额本金：首月还款额、末月还款额、总还款额、总利息
+    gResult = [
+      {k:'首月还款额', v:`${c.ccy}${fmt2(c.firstMP)}`, s:'逐月递减', c:'brand', hl:true},
+      {k:'末月还款额', v:`${c.ccy}${fmt2(c.lastMP)}`, s:`较首月少 ${c.ccy}${fmt2(c.monthlyDec)}`, c:'', hl:false},
+      {k:'总还款额', v:`${c.ccy}${fmt(c.totalPay)}`, s:`${c.n} 期合计`, c:'', hl:false},
+      {k:'总利息', v:`${c.ccy}${fmt(c.totalIr)}`, s:'总还款额 − 贷款总额', c:'warn', hl:false},
+    ];
+  }
+  const copyBtn=`<button class="copyBtn" onclick="copyResult(this)">复制结果</button>`;
+  const row=(title,cls2,arr,action='')=>`<div class="sumrow"><div class="hd">
+      <span class="gh ${cls2}">${title}</span>${action}</div>
+    <div class="stats">${arr.map(x=>`<div class="stat ${x.hl?'hl':''}">
+      <span class="k">${x.k}</span><span class="v ${x.c}">${x.v}</span><span class="s">${x.s}</span></div>`).join('')}</div></div>`;
+  document.getElementById('cards').innerHTML =
+    `<div class="sumstats">${row('贷款结构','struct',gStruct)}${row('还款结果','result',gResult,copyBtn)}</div>` +
+    `<div class="donut" id="donutBox">
+       <div class="dt">本金 vs 利息</div>
+       <div class="donutChart" id="donutChart"></div>
+     </div>`;
+
+  // ---- 本金 vs 利息 環狀圖 ----
+  drawDonut(c);
+  // ---- 明细表 ----
+  drawTable(c);
+  // ---- 图表 ----
+  drawChart(c);
+}
+
+// ===== 明细表 =====
+function drawTable(c){
+  const thead=document.getElementById('thead');
+  const tbody=document.getElementById('tbody');
+  if(view==='month'){
+    thead.innerHTML=`<tr>
+      <th>期次</th><th>月还款额</th><th>本金</th><th>利息</th><th>剩余本金</th><th>累计还款</th><th>累计利息</th>
+    </tr>`;
+    tbody.innerHTML = c.months.map(m=>{
+      const hl = m.m===highlightMonth ? 'hl' : '';
+      return `<tr class="${hl}">
+        <td>${m.m}</td>
+        <td>${c.ccy}${fmt2(m.mp)}</td>
+        <td class="pr">${c.ccy}${fmt2(m.pr)}</td>
+        <td class="ir">${c.ccy}${fmt2(m.ir)}</td>
+        <td class="bal">${c.ccy}${fmt2(m.bal)}</td>
+        <td>${c.ccy}${fmt(m.cumPay)}</td>
+        <td class="ir">${c.ccy}${fmt(m.cumIr)}</td>
+      </tr>`;
+    }).join('');
+  } else {
+    // 年度汇总
+    thead.innerHTML=`<tr>
+      <th>年度</th><th>年还款</th><th>年还本</th><th>年付息</th><th>年末剩余本金</th><th>累计还款</th><th>累计利息</th>
+    </tr>`;
+    const years = [];
+    for(let y=0; y<c.years; y++){
+      let yPay=0, yPr=0, yIr=0, endBal=0;
+      for(let m=0; m<12; m++){
+        const idx = y*12 + m;
+        if(idx>=c.n) break;
+        const mo = c.months[idx];
+        yPay += mo.mp; yPr += mo.pr; yIr += mo.ir; endBal = mo.bal;
+      }
+      years.push({y:y+1, yPay, yPr, yIr, endBal, cumPay:0, cumIr:0});
+    }
+    // 累计
+    let cp=0, ci=0;
+    years.forEach(yr=>{ cp+=yr.yPay; ci+=yr.yIr; yr.cumPay=cp; yr.cumIr=ci; });
+    const hlYear = highlightMonth>0 ? Math.ceil(highlightMonth/12) : 0;
+    tbody.innerHTML = years.map(yr=>{
+      const hl = yr.y===hlYear ? 'hl' : '';
+      return `<tr class="${hl}">
+        <td>${yr.y}</td>
+        <td>${c.ccy}${fmt(yr.yPay)}</td>
+        <td class="pr">${c.ccy}${fmt(yr.yPr)}</td>
+        <td class="ir">${c.ccy}${fmt(yr.yIr)}</td>
+        <td class="bal">${c.ccy}${fmt2(yr.endBal)}</td>
+        <td>${c.ccy}${fmt(yr.cumPay)}</td>
+        <td class="ir">${c.ccy}${fmt(yr.cumIr)}</td>
+      </tr>`;
+    }).join('');
+  }
+  // 自动滚动到高亮行
+  if(highlightMonth>0){
+    const hlRow = tbody.querySelector('tr.hl');
+    if(hlRow) hlRow.scrollIntoView({block:'center'});
+  }
+}
+
+let highlightMonth = 0;   // 图表点击定位的月份
+
+// ===== 还款走势图 =====
+function drawChart(c){
+  const W=1080,H=460,mL=74,mR=22,mT=20,mB=66;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  const disp = c.months;   // 1..n
+  const n = disp.length;
+  // 图例显示状态（须先于 maxV 计算，避免 TDZ 引用错误）
+  const chartEl=document.getElementById('chart');
+  const vis=chartEl._vis||{cumPr:false,cumIr:false,bal:true};
+  chartEl._vis=vis;
+  // 同步圖例禁用態（預設隱藏累計还本/累計付息）
+  document.querySelectorAll('.legend span[data-key]').forEach(sp=>{
+    const k=sp.dataset.key;
+    sp.classList.toggle('off', vis[k]===false);
+  });
+
+  // Y 軸上限只取可見序列，讓預設（僅剩餘本金）視圖填滿圖表
+  let maxV = 0;
+  disp.forEach(m=>{
+    if(vis.bal)    maxV=Math.max(maxV,m.bal);
+    if(vis.cumPr)  maxV=Math.max(maxV,m.cumPr);
+    if(vis.cumIr)  maxV=Math.max(maxV,m.cumIr);
+  });
+  maxV = maxV || c.P || 1;
+  const minV = 0;
+  const denom = n>1 ? n-1 : 1;
+  const X=i=>mL + i/denom*pw;
+  const Y=v=>mT + (maxV-v)/(maxV-minV)*ph;
+
+  let g='';
+  // y 网格
+  const ticks=6;
+  for(let t=0;t<=ticks;t++){
+    const val=minV+(maxV-minV)*t/ticks;
+    const yy=Y(val);
+    g+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="#eef1f7"/>`;
+    g+=`<text x="${mL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#9aa3b5">${val>=1e6?(val/1e6).toFixed(1)+'M':fmt(val)}</text>`;
+  }
+  // x 刻度（月/年自适应）
+  const step = n<=24?1 : n<=60?3 : n<=120?6 : n<=240?12 : 24;
+  for(let i=0;i<n;i++){
+    if(i%step===0 || i===n-1){
+      const px=X(i);
+      g+=`<line x1="${px}" y1="${mT}" x2="${px}" y2="${mT+ph}" stroke="#f3f5fa"/>`;
+      g+=`<text x="${px}" y="${H-mB+18}" text-anchor="middle" font-size="11" fill="#6b7280">${i+1}</text>`;
+    }
+  }
+  g+=`<text x="${mL+pw/2}" y="${H-mB+38}" text-anchor="middle" font-size="11.5" fill="#6b7280">还款期次（月）</text>`;
+
+  // 面积（累计还本、累计付息）
+  const area=(key,fill)=>{
+    const pts=disp.map((m,i)=>`${X(i)},${Y(m[key])}`);
+    const poly=`${mL},${Y(0)} `+pts.join(' ')+` ${X(n-1)},${Y(0)}`;
+    return `<polygon points="${poly}" fill="${fill}" opacity="0.12"/>`;
+  };
+  // 线条
+  const line=(key,color,w,dash)=>{
+    const pts=disp.map((m,i)=>`${X(i)},${Y(m[key])}`).join(' ');
+    return `<polyline fill="none" stroke="${color}" stroke-width="${w}" ${dash?`stroke-dasharray="8 5"`:''} stroke-linejoin="round" points="${pts}"/>`;
+  };
+
+  // 高亮月份竖线
+  const hiIdx = highlightMonth>0 ? Math.min(n-1, highlightMonth-1) : -1;
+  let hlLine = '';
+  if(hiIdx>=0){
+    const px=X(hiIdx);
+    hlLine=`<line x1="${px}" y1="${mT}" x2="${px}" y2="${mT+ph}" stroke="#64748b" stroke-dasharray="5 4" stroke-width="1.6"/>`;
+  }
+
+  // 交叉线 + 高亮点（鼠标跟随）
+  let cross=`<g id="cross" style="display:none">
+      <line id="cx" y1="${mT}" y2="${mT+ph}" stroke="#64748b" stroke-width="1"/>
+      <circle id="c-cp" r="5.5"/><circle id="c-ci" r="5.5"/><circle id="c-bl" r="5.5"/>
+    </g>`;
+
+  const svg=`<svg id="chartSvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block;cursor:crosshair">
+    <defs>
+      <linearGradient id="gCP" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#C8102E" stop-opacity="0.22"/>
+        <stop offset="1" stop-color="#C8102E" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="gCI" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1A1A1A" stop-opacity="0.22"/>
+        <stop offset="1" stop-color="#1A1A1A" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${g}
+    ${vis.cumPr?area('cumPr','url(#gCP)'):''}
+    ${vis.cumIr?area('cumIr','url(#gCI)'):''}
+    ${vis.bal?line('bal','#d4a23c',2.6):''}
+    ${vis.cumPr?line('cumPr','#C8102E',3):''}
+    ${vis.cumIr?line('cumIr','#1A1A1A',3,true):''}
+    ${hlLine}
+    ${vis.cumPr&&hiIdx>=0?`<circle cx="${X(hiIdx)}" cy="${Y(disp[hiIdx].cumPr)}" r="5" fill="#C8102E"/>`:''}
+    ${vis.cumIr&&hiIdx>=0?`<circle cx="${X(hiIdx)}" cy="${Y(disp[hiIdx].cumIr)}" r="5" fill="#1A1A1A"/>`:''}
+    ${vis.bal&&hiIdx>=0?`<circle cx="${X(hiIdx)}" cy="${Y(disp[hiIdx].bal)}" r="5" fill="#d4a23c"/>`:''}
+    <rect id="hit" x="${mL}" y="${mT}" width="${pw}" height="${ph}" fill="transparent"/>
+    ${cross}
+  </svg>`;
+  chartEl.innerHTML=`<div class="tip" id="tip" style="display:none"></div>`+svg;
+
+  // ---- 交互 ----
+  const svgEl=document.getElementById('chartSvg');
+  const tip=document.getElementById('tip');
+  const crossG=document.getElementById('cross');
+  const cx=document.getElementById('cx');
+  const ccp=document.getElementById('c-cp'), cci=document.getElementById('c-ci'), cbl=document.getElementById('c-bl');
+
+  function monthFromEvent(ev){
+    const rect=svgEl.getBoundingClientRect();
+    const vx=(ev.clientX-rect.left)/rect.width*W;
+    let mo=Math.round((vx-mL)/pw*denom)+1;
+    return Math.max(1,Math.min(n,mo));
+  }
+  function onMove(ev){
+    const rect=svgEl.getBoundingClientRect();
+    const mo=monthFromEvent(ev);
+    const idx=mo-1, m=disp[idx];
+    const px=X(idx);
+    const ycp=Y(m.cumPr), yci=Y(m.cumIr), ybl=Y(m.bal);
+    crossG.style.display='';
+    cx.setAttribute('x1',px); cx.setAttribute('x2',px);
+    if(vis.cumPr){ccp.style.display='';ccp.setAttribute('cx',px);ccp.setAttribute('cy',ycp);ccp.setAttribute('fill','#C8102E');} else ccp.style.display='none';
+    if(vis.cumIr){cci.style.display='';cci.setAttribute('cx',px);cci.setAttribute('cy',yci);cci.setAttribute('fill','#1A1A1A');} else cci.style.display='none';
+    if(vis.bal){cbl.style.display='';cbl.setAttribute('cx',px);cbl.setAttribute('cy',ybl);cbl.setAttribute('fill','#d4a23c');} else cbl.style.display='none';
+    const yr = Math.ceil(mo/12);
+    tip.innerHTML=`<b>第 ${mo} 期 · 第 ${yr} 年</b>`+
+      (vis.cumPr?`<div><i style="background:#C8102E"></i>累计还本 ${c.ccy}${fmt(m.cumPr)}</div>`:'')+
+      (vis.cumIr?`<div><i style="background:#1A1A1A"></i>累计付息 ${c.ccy}${fmt(m.cumIr)}</div>`:'')+
+      (vis.bal?`<div><i style="background:#d4a23c"></i>剩余本金 ${c.ccy}${fmt2(m.bal)}</div>`:'')+
+      `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #334155">本期月供 ${c.ccy}${fmt2(m.mp)}（本 ${fmt2(m.pr)} + 息 ${fmt2(m.ir)}）</div>`;
+    tip.style.display='';
+
+    // 自动避让
+    const tipW=tip.offsetWidth||200, tipH=tip.offsetHeight||110;
+    const sx=W/rect.width, sy=H/rect.height;
+    const sw=tipW*sx, sh=tipH*sy;
+    const vals=[];
+    if(vis.cumPr) vals.push(m.cumPr);
+    if(vis.cumIr) vals.push(m.cumIr);
+    if(vis.bal) vals.push(m.bal);
+    const topVal = vals.length?Math.max(...vals):maxV;
+    const botVal = vals.length?Math.min(...vals):minV;
+    const topPx=Y(topVal), botPx=Y(botVal);
+    const freeTop=topPx-mT, freeBottom=(mT+ph)-botPx;
+    let tx = px < W/2 ? px+16 : px-sw-16;
+    tx = Math.max(4*sx, Math.min(W-sw-4*sx, tx));
+    let ty = freeTop>=freeBottom ? Math.max(mT+2, topPx-sh-8) : Math.min(mT+ph-sh-2, botPx+8);
+    ty = Math.max(mT, Math.min(mT+ph-sh, ty));
+    tip.style.left=(tx/sx)+'px';
+    tip.style.top=(ty/sy)+'px';
+  }
+  svgEl.addEventListener('mousemove',onMove);
+  svgEl.addEventListener('mouseleave',()=>{crossG.style.display='none';tip.style.display='none';});
+  // 点击图表定位月份
+  svgEl.addEventListener('mousedown',ev=>{
+    highlightMonth = monthFromEvent(ev);
+    render();
+  });
+}
+
+// ===== 本金 vs 利息 環狀圖（互動）=====
+function drawDonut(c){
+  const box=document.getElementById('donutChart');
+  const legendEl=document.getElementById('donutLegend');
+  if(!box) return;
+  const pr = c.P;                              // 本金（貸款總額）
+  const ir = c.totalIr;                        // 利息（總利息）
+  const total = pr + ir;
+  const prPct = total>0 ? pr/total : 0;
+  const irPct = total>0 ? ir/total : 0;
+  const cx=110, cy=102, R=84, w=30, Ri=R-w;   // 外半徑 84、環寬 30、內半徑 54
+  const k = 0.70;                             // 垂直壓扁係數（透視傾斜）
+  const D = 16;                               // 3D 厚度（側壁下沉深度）
+  const gapDeg = 2;                           // 頂部(12點)與交界(約7點)各一個均勻缺口，二者相同
+  const COL_PR='#C8102E', COL_IR='#c79a3a';
+  const SIDE_PR='#8E0B20', SIDE_IR='#9c7220';     // 側壁（較深，突顯厚度）
+  const TRACK_TOP='#eef1f7', TRACK_SIDE='#cdd3df'; // 底盤 頂面/側壁 灰
+  const polar=(r,deg)=>{ const a=(deg-90)*Math.PI/180; return [cx+r*Math.cos(a), cy+k*r*Math.sin(a)]; };
+  // 扇形環段（oy 為 3D 下沉偏移；橢圓透視）
+  const arcPath=(a1,a2,oy=0)=>{
+    const [x1,y1]=polar(R,a1), [x2,y2]=polar(R,a2), [x3,y3]=polar(Ri,a2), [x4,y4]=polar(Ri,a1);
+    const large=(a2-a1)>180?1:0;
+    const Y=v=>(v+oy).toFixed(2);
+    return `M${x1.toFixed(2)} ${Y(y1)} A${R} ${(R*k).toFixed(2)} 0 ${large} 1 ${x2.toFixed(2)} ${Y(y2)} `+
+           `L${x3.toFixed(2)} ${Y(y3)} A${Ri} ${(Ri*k).toFixed(2)} 0 ${large} 0 ${x4.toFixed(2)} ${Y(y4)} Z`;
+  };
+  // 完整圓環（evenodd 掏空中心），橢圓透視
+  const ringPath=(oy=0)=>{
+    const cyo=cy+oy;
+    return `M${cx-R} ${cyo} a${R} ${(R*k).toFixed(2)} 0 1 0 ${2*R} 0 a${R} ${(R*k).toFixed(2)} 0 1 0 ${-2*R} 0 Z `+
+           `M${cx-Ri} ${cyo} a${Ri} ${(Ri*k).toFixed(2)} 0 1 1 ${2*Ri} 0 a${Ri} ${(Ri*k).toFixed(2)} 0 1 1 ${-2*Ri} 0 Z`;
+  };
+  // 頂部（12 點）與本金/利息交界（約 7 點）各留一個均勻缺口，二者大小相同
+  const aPr1 = gapDeg/2;
+  const aPr2 = aPr1 + prPct*(360-2*gapDeg);
+  const aIr1 = aPr2 + gapDeg;
+  const aIr2 = aIr1 + irPct*(360-2*gapDeg);
+
+  const svg=`<svg id="donutSvg" viewBox="0 0 220 220" style="width:100%;height:auto;display:block">
+    <defs>
+      <linearGradient id="gPR" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#E8465A"/><stop offset="1" stop-color="#C8102E"/>
+      </linearGradient>
+      <linearGradient id="gIR" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#E6C883"/><stop offset="1" stop-color="#c79a3a"/>
+      </linearGradient>
+    </defs>
+    <ellipse cx="${cx}" cy="${cy+D+R*k+8}" rx="${(R*0.86).toFixed(1)}" ry="${(R*0.16).toFixed(1)}" fill="rgba(20,20,20,0.10)"/>
+    <!-- 3D 側壁（底層，實心深色，形成明顯且連續的外立面/厚度）-->
+    <path d="${ringPath(D)}" fill="${TRACK_SIDE}" fill-rule="evenodd"/>
+    <path d="${arcPath(aPr1,aPr2,D)}" fill="${SIDE_PR}"/>
+    <path d="${arcPath(aIr1,aIr2,D)}" fill="${SIDE_IR}"/>
+    <!-- 頂面 -->
+    <path d="${ringPath(0)}" fill="${TRACK_TOP}" fill-rule="evenodd"/>
+    <path class="seg" data-key="pr" d="${arcPath(aPr1,aPr2,0)}" fill="url(#gPR)"/>
+    <path class="seg" data-key="ir" d="${arcPath(aIr1,aIr2,0)}" fill="url(#gIR)"/>
+  </svg>`;
+  box.innerHTML=`<div class="tip" id="donutTip" style="display:none"></div>`+svg;
+  if(legendEl){
+    legendEl.innerHTML=`<span><i style="background:${COL_PR}"></i>本金 <b>${pct(prPct,1)}</b></span>`+
+       `<span><i style="background:${COL_IR}"></i>利息 <b>${pct(irPct,1)}</b></span>`;
+  }
+
+  const svgEl=document.getElementById('donutSvg');
+  const tip=document.getElementById('donutTip');
+  const segs=svgEl.querySelectorAll('.seg');
+  segs.forEach(s=>{
+    s.addEventListener('mouseenter',()=>{
+      segs.forEach(o=>{ o.style.opacity = (o===s)?'1':'0.18'; });
+      s.style.transform='scale(1.05)';
+      const isPr = s.dataset.key==='pr';
+      const val = isPr? pr : ir;
+      const pc  = isPr? prPct : irPct;
+      const col = isPr? COL_PR : COL_IR;
+      tip.innerHTML=`<b>${isPr?'本金（贷款总额）':'利息（总利息）'}</b>`+
+        `<div><i style="background:${col}"></i>${c.ccy}${fmt(val)}（${pct(pc,1)}）</div>`;
+      tip.style.display='';
+      // 定位到該段弧中點
+      const mid = isPr ? (aPr1+aPr2)/2 : (aIr1+aIr2)/2;
+      const [mx,my]=polar(R,mid);
+      const scl = svgEl.getBoundingClientRect().width/220;
+      tip.style.left=(mx*scl - (tip.offsetWidth||120)/2)+'px';
+      tip.style.top =(my*scl - (tip.offsetHeight||60)/2)+'px';
+    });
+    s.addEventListener('mouseleave',()=>{
+      segs.forEach(o=>{ o.style.opacity='1'; o.style.transform=''; });
+      tip.style.display='none';
+    });
+  });
+}
+
+// ===== 图例点击 =====
+document.querySelectorAll('.legend span[data-key]').forEach(sp=>{
+  sp.addEventListener('click',()=>{
+    const k=sp.dataset.key;
+    const chartEl=document.getElementById('chart');
+    const vis=chartEl._vis||{cumPr:true,cumIr:true,bal:true};
+    vis[k]=!vis[k]; chartEl._vis=vis;
+    sp.classList.toggle('off', !vis[k]);
+    render();
+  });
+});
+
+// ===== 滑块进度填充 =====
+function setFills(){
+  ['rate','term','loan'].forEach(id=>{
+    const rng=document.getElementById(id+'R');
+    if(!rng) return;
+    const min=+rng.min, max=+rng.max, v=+rng.value;
+    rng.style.setProperty('--p', Math.max(0,Math.min(100,(v-min)/(max-min)*100))+'%');
+  });
+  const rb=document.getElementById('rateBadge');
+  if(rb) rb.textContent = (+document.getElementById('rate').value).toFixed(2)+'%';
+  const tb=document.getElementById('termBadge');
+  if(tb) tb.textContent = document.getElementById('term').value+' 年';
+}
+
+// ===== 双向绑定 =====
+['rate','term','loan'].forEach(id=>{
+  const num=document.getElementById(id), rng=document.getElementById(id+'R');
+  num.addEventListener('input',()=>{ rng.value=num.value; render(); });
+  rng.addEventListener('input',()=>{ num.value=rng.value; render(); });
+});
+['ccy'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input', render);
+  el.addEventListener('change', render);
+});
+
+// ===== 複製還款結果（月還款額 / 總還款額 / 總利息）=====
+function copyResult(btn){
+  if(!lastC) return;
+  const c=lastC;
+  const monthlyLbl = mode==='equal' ? '月还款额' : '首月还款额';
+  const monthly = c.ccy + fmt2(mode==='equal' ? c.monthlyPayment : c.firstMP);
+  const text = `${monthlyLbl}：${monthly}\n总还款额：${c.ccy}${fmt(c.totalPay)}\n总利息：${c.ccy}${fmt(c.totalIr)}`;
+  const done=()=>{ btn.textContent='已复制✓'; btn.classList.add('done');
+    setTimeout(()=>{ btn.textContent='复制结果'; btn.classList.remove('done'); },1500); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  } else { fallbackCopy(text,done); }
+}
+function fallbackCopy(text,done){
+  const ta=document.createElement('textarea'); ta.value=text;
+  ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+  ta.select(); try{ document.execCommand('copy'); done(); }catch(e){}
+  document.body.removeChild(ta);
+}
+
+// ===== 導出 Excel（真正 .xlsx；離線時降級 CSV）=====
+function exportExcel(){
+  if(!lastC) return;
+  const c=lastC, isMonth = view==='month';
+  const r2 = n => Math.round(n*100)/100;
+  const head = isMonth
+    ? ['期次','月还款额','本金','利息','剩余本金','累计还款','累计利息']
+    : ['年度','年还款额','年还本','年付息','年末剩余本金','累计还款','累计利息'];
+  let rows;
+  if(isMonth){
+    rows = c.months.map(m=>[m.m, r2(m.mp), r2(m.pr), r2(m.ir), r2(m.bal), Math.round(m.cumPay), Math.round(m.cumIr)]);
+  } else {
+    const yrs=[];
+    for(let y=0;y<c.years;y++){
+      let yPay=0,yPr=0,yIr=0,endBal=0;
+      for(let mm=0;mm<12;mm++){ const idx=y*12+mm; if(idx>=c.n) break;
+        const mo=c.months[idx]; yPay+=mo.mp; yPr+=mo.pr; yIr+=mo.ir; endBal=mo.bal; }
+      yrs.push({y:y+1,yPay,yPr,yIr,endBal});
+    }
+    let cp=0,ci=0;
+    rows = yrs.map(yr=>{ cp+=yr.yPay; ci+=yr.yIr;
+      return [yr.y, r2(yr.yPay), r2(yr.yPr), r2(yr.yIr), r2(yr.endBal), Math.round(cp), Math.round(ci)]; });
+  }
+  const aoa = [head, ...rows];
+  const fname = `还款明细_${isMonth?'逐月':'年度'}`;
+  if(window.XLSX){
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '还款明细');
+    XLSX.writeFile(wb, fname + '.xlsx');
+  } else {
+    // 離線降級：CSV（UTF-8 BOM）
+    const csv = '﻿' + aoa.map(r=>r.join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=fname+'.csv';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+}
+
+render();
+</script>
+</body>
+</html>
