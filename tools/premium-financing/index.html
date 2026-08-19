@@ -1,14 +1,32 @@
 <!doctype html>
-<html lang="zh-HK">
+<html lang="zh-Hant">
   <head>
+    <style>.language-switch,header.site-header{display:none!important}</style>
+    <script>window.history.replaceState(null, "", "/");</script>
+    <style>.premium-shell .hero-panel{background-image:url("/manus-storage/calculator-hub-paper-detail_a7afec4b.jpg")!important}.schedule-ledger-visual{background-image:url("/manus-storage/calculator-hub-desk-macro_205e7f4d.jpg")!important}</style><script>document.addEventListener("error",function(e){var i=e.target;if(i&&i.tagName==="IMG"&&/(premium-financing-logo|medical-ledger-logo|medical-ledger-proof-mark|aia-calculator-logo-mark)/.test(i.src))i.src="/manus-storage/calculator-hub-mark_a77cd3ac.png";else if(i&&i.tagName==="IMG"&&/(premium-financing-hero|aia-calculator-hero)/.test(i.src))i.src="/manus-storage/calculator-hub-paper-detail_a7afec4b.jpg"},true)</script>
+    <script>
+      /* Static GitHub Pages compatibility: rates.refresh normally calls a server-only tRPC route.
+         Return a valid tRPC error envelope instead of letting the SPA fallback HTML be parsed as JSON. */
+      (function () {
+        if (!/\.github\.io$/i.test(window.location.hostname)) return;
+        var nativeFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+          var url = typeof input === "string" ? input : input && input.url ? input.url : "";
+          if (!/\/api\/trpc\/rates\.refresh(?:[/?]|$)/.test(url)) return nativeFetch(input, init);
+          var issue = { error: { json: { message: "此靜態版本沒有利率後端，請開啟大新銀行官方連結核對今日 HIBOR 與 P，再手動輸入。", code: -32000, data: { code: "PRECONDITION_FAILED", httpStatus: 412, path: "rates.refresh" } } } };
+          var body = /[?&]batch=1(?:&|$)/.test(url) ? [issue] : issue;
+          return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
+        };
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <meta name="theme-color" content="#D71920" />
-    <meta name="description" content="集中管理保單回報、保費融資、醫療保費、按揭供款與港元匯兌的計算工作台。" />
-    <link rel="icon" type="image/png" href="/manus-storage/calculator-hub-mark_a77cd3ac.png" />
-    <title>計算工作台｜Calculator Hub</title>
-    <script type="module" crossorigin src="/assets/index-DGWULHDD.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DuhY4ajm.css">
+    <meta name="theme-color" content="#d71920" />
+    <meta name="description" content="保費融資收益計算機：比較高額保單融資後的年度資金成本、退出淨回收與 IRR。" />
+    <link rel="icon" href="/manus-storage/premium-financing-logo_9e415e74.png" />
+    <title>保費融資收益計算機</title>
+    <script type="module" crossorigin src="/tools/premium-financing/assets/index-DzdFQ31u.js"></script>
+    <link rel="stylesheet" crossorigin href="/tools/premium-financing/assets/index-B3-35Cnx.css">
     <script src="/__manus__/debug-collector.js" defer></script>
   </head>
   <body>
@@ -76,4 +94,3 @@ Error generating stack: `+l.message+`
     <script defer src="https://manus-analytics.com/umami" data-website-id="b5a540d2-e085-4807-b6a2-098aba78e525"></script>
   </body>
 </html>
-
