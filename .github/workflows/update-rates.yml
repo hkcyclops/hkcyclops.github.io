@@ -18,7 +18,9 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # v4 用的是 Node 20，已被 GitHub 標記棄用，runner 會強制丟到 Node 24 並噴警告。
+      # v5 起改用 node24，警告消失。（v6 / v7 也是 node24，但 v5 是 v4 的直接後繼、最穩。）
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # 讓後面的 git pull --rebase 能正常運作
 
