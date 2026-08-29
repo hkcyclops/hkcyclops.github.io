@@ -1,9 +1,0 @@
-{
- "html": "03-medical-premium-calculator.html",
- "pattern": "JSON.parse('",
- "start_offset": 1296434,
- "end_offset": 2060666,
- "products": 22,
- "tables": 152,
- "note": "更新费率时改 medical-rates.json，再用 inject_medical_rates.py 写回 HTML"
-}
