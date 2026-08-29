@@ -19,10 +19,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 讓後面的 git pull --rebase 能正常運作
 
+      # ① 先跟遠端同步，而且必須在「動到任何檔案之前」做。
+      #    舊版是先寫 data/rates.js 再 pull，檔案一髒 Git 就拒絕：
+      #    error: cannot pull with rebase: You have unstaged changes.
+      - name: Sync with remote
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin ${{ github.ref_name }}
+
+      # ② 抓 AIA，先落到暫存檔，還不碰倉庫裡的 data/rates.js
       - name: Fetch rates from AIA
         run: |
-          mkdir -p data
           curl -sS --fail --max-time 30 \
             "https://www1.aia.com.hk/CorpWS/Investment/Get/ExchangeRate2" \
             -o /tmp/aia.json
@@ -43,22 +54,42 @@ jobs:
             const rates = {};
             for (const r of raw) if (r.type !== "date") rates[r.type.toUpperCase()] = r.value;
             const payload = { asOf, fetchedAt: new Date().toISOString(), rates };
-            fs.writeFileSync("data/rates.js",
+            fs.writeFileSync("/tmp/rates.new.js",
               "window.AIA_RATES = " + JSON.stringify(payload, null, 2) + ";\n");
             console.log("日期:", asOf, "幣種數:", Object.keys(rates).length);
           '
 
+      # ③ 只比對 asOf + rates，忽略每次都變的 fetchedAt。
+      #    否則光是時間戳不同就天天空 commit，把提交歷史洗滿。
+      - name: Write only if rates changed
+        run: |
+          node -e '
+            const fs = require("fs");
+            const parse = (s) => {
+              const m = String(s).match(/window\.AIA_RATES\s*=\s*([\s\S]*?);\s*$/);
+              const o = JSON.parse(m[1]);
+              return JSON.stringify([o.asOf, o.rates]);
+            };
+            const next = fs.readFileSync("/tmp/rates.new.js", "utf8");
+            const cur = fs.existsSync("data/rates.js")
+              ? fs.readFileSync("data/rates.js", "utf8") : null;
+            if (cur && parse(cur) === parse(next)) {
+              console.log("匯率與既有內容相同，略過寫入");
+              process.exit(0);
+            }
+            fs.mkdirSync("data", { recursive: true });
+            fs.copyFileSync("/tmp/rates.new.js", "data/rates.js");
+            console.log("已更新 data/rates.js");
+          '
+
+      # ④ 有實際變動才提交
       - name: Commit only if changed
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin ${{ github.ref_name }}
           git add data/rates.js
 
-          # 匯率沒變就不要提交，避免每天空 commit 刷滿歷史
           if git diff --quiet --cached; then
             echo "匯率未變動，略過提交"
           else
             git commit -m "chore(rates): update $(date -u +%Y-%m-%d)"
-            git push
+            git push origin HEAD:${{ github.ref_name }}
           fi
