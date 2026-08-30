@@ -17,7 +17,7 @@ window.__CALCULATOR_HUB_NATIVE_FETCH__=window.fetch.bind(window);
     if(pending[relJs]) return pending[relJs];
     pending[relJs]=new Promise(function(resolve,reject){
       var s=document.createElement('script');
-      s.src=relJs;
+      s.src=relJs+'?v='+(function(){var d=new Date();return ''+d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);})();
       s.onload=function(){ resolve(window.__FUND_DATA__[relJs]); };
       s.onerror=function(){ reject(new Error('无法载入资料档 '+relJs)); };
       document.head.appendChild(s);
@@ -62,6 +62,19 @@ window.__CALCULATOR_HUB_NATIVE_FETCH__=window.fetch.bind(window);
               exchangeRatesHkd:out, identities:cat.identities};
     }catch(e){ return cat; }
   }
+  function syncUsdHkdInput(){
+    try{
+      var r=window.AIA_RATES && window.AIA_RATES.rates && window.AIA_RATES.rates.USD;
+      if(!r) return;
+      var inp=document.querySelector('input[aria-label="USD/HKD 兑换率"]');
+      if(!inp) return;
+      var nv=String(r), ov=String(inp.value);
+      if(ov===nv) return;
+      inp.value=nv;
+      inp.dispatchEvent(new Event('input',{bubbles:true}));
+      inp.dispatchEvent(new Event('change',{bubbles:true}));
+    }catch(e){}
+  }
   function respond(obj){
     return Promise.resolve(new Response(JSON.stringify(obj),
       {status:200,headers:{'Content-Type':'application/json'}}));
@@ -86,7 +99,12 @@ window.__CALCULATOR_HUB_NATIVE_FETCH__=window.fetch.bind(window);
           throw new Error('资料档内容为空 '+relJs);
         }
         if(norm==='/data/catalog.json'){
-          return loadRates().then(function(){ return respond(applyLiveRates(obj)); });
+          return loadRates().then(function(){
+            setTimeout(syncUsdHkdInput,0);
+            setTimeout(syncUsdHkdInput,300);
+            setTimeout(syncUsdHkdInput,1000);
+            return respond(applyLiveRates(obj));
+          });
         }
         return respond(obj);
       });
