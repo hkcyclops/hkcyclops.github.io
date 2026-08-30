@@ -38,7 +38,7 @@ window.__CALCULATOR_HUB_NATIVE_FETCH__=window.fetch.bind(window);
     if(ratesPending) return ratesPending;
     ratesPending=new Promise(function(resolve){
       var sc=document.createElement('script');
-      sc.src='data/rates.js';
+      sc.src='data/rates.js?v='+(function(){var d=new Date();return ''+d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);})();
       sc.onload=function(){ resolve(window.AIA_RATES||null); };
       sc.onerror=function(){ resolve(null); };
       document.head.appendChild(sc);
