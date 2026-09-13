@@ -30,6 +30,19 @@
     font-family: inherit; }
   #modes button.on { background: #147bb3; color: #fff; }
   #hint { font-size: 12px; opacity: .65; margin: 0 4px; }
+  #voyage-card { position: absolute; right: 18px; top: 18px; width: 240px; padding: 12px 14px; }
+  #voyage-card.hidden { display: none; }
+  #voyage-card h3 { margin: 0 0 6px; font-size: 14px; color: #14506e; }
+  #voyage-status { min-height: 34px; font-size: 12px; line-height: 1.45; opacity: .78; }
+  #voyage-track { height: 7px; border-radius: 99px; background: rgba(20,80,120,.16); overflow: hidden; margin: 8px 0 8px; }
+  #voyage-fill { display: block; width: 0%; height: 100%; border-radius: 99px; background: #14a06a; transition: width .12s linear; }
+  #catch-list { list-style: none; margin: 0 0 8px; padding: 0; font-size: 12px; min-height: 20px; }
+  #catch-list li { padding: 2px 0; border-top: 1px solid rgba(20,80,120,.08); opacity: .78; }
+  #btn-return { width: 100%; border: 0; border-radius: 9px; padding: 7px 10px; font-size: 12px;
+    cursor: pointer; background: rgba(20,123,179,.12); color: #14506e; font-family: inherit; transition: .15s; }
+  #btn-return:hover { background: rgba(20,123,179,.2); }
+  #btn-return:disabled { opacity: .35; cursor: not-allowed; }
+  @media (max-width: 700px) { #voyage-card { width: calc(100vw - 36px); top: auto; bottom: 108px; } }
   #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: #dfeefb; color: #3a7ea8; font-size: 15px; letter-spacing: 2px;
     transition: opacity .5s; z-index: 10; }
@@ -48,6 +61,13 @@
     <button id="btn-rotate" class="on">自动旋转：开</button>
     <button id="btn-feed">🍞 投喂鱼群</button>
     <span id="hint">拖拽旋转 · 滚轮缩放 · 点击水面投喂</span>
+  </div>
+  <div id="voyage-card" class="card hidden">
+    <h3>🎣 海上航行 · 钓鱼</h3>
+    <div id="voyage-status">点击木船即可上船。</div>
+    <div id="voyage-track"><i id="voyage-fill"></i></div>
+    <ul id="catch-list"></ul>
+    <button id="btn-return">⚓ 返航下船</button>
   </div>
   <div id="modes" class="card">
     <button data-m="day" class="on">☀️ 白天</button>
@@ -638,6 +658,24 @@ const bubbles = [];
     scene.add(ray);
   }
 }
+/* ================= 夜间水母光雾（B+） ================= */
+const haloTextures = {};
+function nightHazeTexture() {
+  if (haloTextures.nightHaze) return haloTextures.nightHaze;
+  const tex = canvasTex(256, 256, (x, w, h) => {
+    const cx = w / 2, cy = h / 2, r = w / 2;
+    x.clearRect(0, 0, w, h);
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, 'rgba(255,255,255,.95)');
+    g.addColorStop(.24, 'rgba(255,255,255,.42)');
+    g.addColorStop(.58, 'rgba(255,255,255,.12)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill();
+  });
+  haloTextures.nightHaze = tex;
+  return tex;
+}
+
 /* ================= 昼夜水母（保证可见） ================= */
 const jellies = [];
 {
@@ -702,6 +740,16 @@ const jellies = [];
     bell.renderOrder = 12; rim.renderOrder = 13; heart.renderOrder = 14;
     g.add(bell, rim, heart);
 
+    const nightHalo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: nightHazeTexture(), color: glowColor, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
+      toneMapped: false, fog: false
+    }));
+    nightHalo.position.y = -0.03;
+    nightHalo.scale.set(4.25, 4.25, 1);
+    nightHalo.renderOrder = 119;
+    g.add(nightHalo);
+
     for (let i = 0; i < 5; i++) {
       const a = i / 5 * Math.PI * 2 + rand() * 0.35;
       const arm = new THREE.Mesh(armGeo, coreMat);
@@ -728,7 +776,8 @@ const jellies = [];
     g.userData = {
       bx: x, by: y, bz: z, night,
       baseRX: rx, baseRY: ry, baseRZ: rz,
-      ph: rand() * Math.PI * 2, sp: rr(0.65, 1.20), bell
+      ph: rand() * Math.PI * 2, sp: rr(0.65, 1.20), bell,
+      nightHalo
     };
     jellies.push(g); scene.add(g);
   }
@@ -1159,19 +1208,129 @@ function makePalm(h) {
 
 const sheepTask = {
   phase: 'idle', tree: null, timer: 0,
-  target: new THREE.Vector3(), home: new THREE.Vector3()
+  target: new THREE.Vector3(), home: new THREE.Vector3(),
+  path: [], pathIndex: 0
 };
-{
-  if (sheepChar) sheepTask.home.set(sheepChar.position.x, sheepChar.position.z);
-  function beginTreeTask(palm) {
-    if (!sheepChar || sheepTask.phase === 'walk' || sheepTask.phase === 'shake' || sheepTask.phase === 'return') return;
-    const from = tmpV2.set(sheepChar.position.x - palm.position.x, 0, sheepChar.position.z - palm.position.z);
-    if (from.lengthSq() < 0.01) from.set(1, 0, 0);
-    from.normalize();
-    const gx = palm.position.x + from.x * 0.82, gz = palm.position.z + from.z * 0.82;
-    sheepTask.target.set(gx, topY(Math.hypot(gx - ISLAND_C.x, gz - ISLAND_C.y)) + 0.05, gz);
-    sheepTask.tree = palm; sheepTask.phase = 'walk'; sheepTask.timer = 0;
+if (sheepChar) sheepTask.home.set(sheepChar.position.x, sheepChar.position.z);
+
+// 小岛上的简易避障：灯塔、木屋、篝火与椰树干都作为圆形障碍。
+const islandObstacles = (() => {
+  const fireDir = new THREE.Vector2(Math.cos(PIER_A), Math.sin(PIER_A));
+  const firePerp = new THREE.Vector2(-fireDir.y, fireDir.x);
+  const list = [
+    { x: 0, z: 0, r: 1.78 },                                        // 灯塔底座
+    { x: Math.cos(-0.22) * 4.35, z: Math.sin(-0.22) * 4.35, r: 1.16 }, // 高脚木屋
+    { x: fireDir.x * 5.0 + firePerp.x * 1.15, z: fireDir.y * 5.0 + firePerp.y * 1.15, r: .58 } // 营火
+  ];
+  for (const palm of palms) list.push({ x: palm.position.x, z: palm.position.z, r: .32, palm: true });
+  return list;
+})();
+
+function distancePointSegment(px, pz, ax, az, bx, bz) {
+  const vx = bx - ax, vz = bz - az;
+  const len2 = vx * vx + vz * vz;
+  const t = len2 < 1e-8 ? 0 : Math.max(0, Math.min(1, ((px - ax) * vx + (pz - az) * vz) / len2));
+  const cx = ax + vx * t, cz = az + vz * t;
+  return { d: Math.hypot(px - cx, pz - cz), t, cx, cz };
+}
+function segmentClear(ax, az, bx, bz) {
+  for (const o of islandObstacles) {
+    const q = distancePointSegment(o.x, o.z, ax, az, bx, bz);
+    if (q.d < o.r) return false;
   }
+  return true;
+}
+function obstaclePathPoints() {
+  const pts = [];
+  for (const o of islandObstacles) {
+    const count = o.palm ? 8 : 16;
+    const rr2 = o.r + (o.palm ? .20 : .38);
+    for (let i = 0; i < count; i++) {
+      const a = i / count * Math.PI * 2;
+      const x = o.x + Math.cos(a) * rr2;
+      const z = o.z + Math.sin(a) * rr2;
+      // 不把绕行点放进其它障碍物里。
+      if (islandObstacles.every(q => Math.hypot(x - q.x, z - q.z) >= q.r + .04)) pts.push(new THREE.Vector2(x, z));
+    }
+  }
+  return pts;
+}
+function planIslandPath(start, goal) {
+  const a = new THREE.Vector2(start.x, start.z);
+  const b = new THREE.Vector2(goal.x, goal.z);
+  if (a.distanceTo(b) < .16) return [b.clone()];
+  if (segmentClear(a.x, a.y, b.x, b.y)) return [b.clone()];
+
+  const nodes = [a.clone(), b.clone()];
+  for (const q of obstaclePathPoints()) nodes.push(q);
+
+  const n = nodes.length;
+  const dist = new Array(n).fill(Infinity);
+  const prev = new Array(n).fill(-1);
+  const done = new Array(n).fill(false);
+  dist[0] = 0;
+
+  for (let step = 0; step < n; step++) {
+    let best = -1, bestScore = Infinity;
+    for (let i = 0; i < n; i++) {
+      if (!done[i] && dist[i] < bestScore) { best = i; bestScore = dist[i]; }
+    }
+    if (best < 0 || best === 1) break;
+    done[best] = true;
+    for (let i = 0; i < n; i++) {
+      if (i === best || done[i]) continue;
+      if (!segmentClear(nodes[best].x, nodes[best].y, nodes[i].x, nodes[i].y)) continue;
+      const nd = dist[best] + nodes[best].distanceTo(nodes[i]);
+      if (nd < dist[i]) { dist[i] = nd; prev[i] = best; }
+    }
+  }
+
+  const path = [];
+  for (let i = 1; i >= 0; i = prev[i]) {
+    if (i < 0) break;
+    path.unshift(nodes[i].clone());
+  }
+  // 简易图一定能绕过这组小障碍；若极端找不到路径，退回外圈绕行。
+  if (path.length < 2) {
+    const side = Math.sign((b.x - a.x) * (0 - a.y) - (b.y - a.y) * (0 - a.x)) || 1;
+    path.length = 0;
+    path.push(a.clone(), new THREE.Vector2(0 + side * 2.35, 0), b.clone());
+  }
+  // 第一个点就是起点，实际行走从下一个点开始。
+  if (path.length > 1) path.shift();
+  return path;
+}
+function setGroundTarget(target, x, z) {
+  target.set(x, topY(Math.hypot(x - ISLAND_C.x, z - ISLAND_C.y)) + .05, z);
+}
+function beginTreeTask(palm) {
+  // 主角必须在岛上；船上的点击不会触发陆地互动。
+  if (!sheepChar || sheepChar.parent !== island || voyage.mode !== 'island') return;
+  // 正在摇同一棵树时不重复打断，换目标则立即取消当前动作。
+  if (sheepTask.phase === 'shake' && sheepTask.tree === palm) return;
+
+  const previousTree = sheepTask.tree;
+  if (previousTree && previousTree !== palm && previousTree.userData && previousTree.userData.top) {
+    previousTree.userData.top.rotation.z = 0;
+  }
+
+  const from = tmpV2.set(sheepChar.position.x - palm.position.x, 0, sheepChar.position.z - palm.position.z);
+  if (from.lengthSq() < 0.01) from.set(1, 0, 0);
+  from.normalize();
+  const gx = palm.position.x + from.x * 0.82, gz = palm.position.z + from.z * 0.82;
+  const start = { x: sheepChar.position.x, z: sheepChar.position.z };
+
+  // 立刻从当前位置重新规划；walk / shake / return 都可被新目标打断。
+  sheepTask.path = planIslandPath(start, { x: gx, z: gz });
+  sheepTask.pathIndex = 0;
+  setGroundTarget(sheepTask.target, sheepTask.path[0].x, sheepTask.path[0].y);
+  sheepTask.tree = palm;
+  sheepTask.phase = 'walk';
+  sheepTask.timer = 0;
+  sheepTask.spawned = 0;
+  sheepTask.cocoTimer = 0;
+  sheepChar.rotation.z = 0;
+}
   function spawnCoconut(palm) {
     const top = palm.userData.top;
     const wp = new THREE.Vector3();
@@ -1187,7 +1346,8 @@ const sheepTask = {
   }
   window.__beginTreeTask = beginTreeTask;
   window.__spawnCoconut = spawnCoconut;
-}const gullPerches = [];
+
+const gullPerches = [];
 /* ================= 木栈桥（固定在岛上 · 短桥墩不落海床） ================= */
 {
   const dir = new THREE.Vector2(Math.cos(PIER_A), Math.sin(PIER_A));
@@ -1289,66 +1449,226 @@ const sheepTask = {
     island.add(mb);
   }
 }
-/* ================= 小船（海上随波浮动） ================= */
+/* ================= 小船（按木帆船标准重建 · 海上随波浮动） ================= */
 const boat = new THREE.Group();
-const boatPos = new THREE.Vector2(7.2, 7.6);
+const boatPos = new THREE.Vector2(9.35, 4.45);
 {
-  const woodMat = std(0xa06a3c, { roughness: 0.8 });
-  const plankMat = std(0xc08a52, { roughness: 0.85 });
-  const darkWood = std(0x6e4a28, { roughness: 0.9 });
-  const hullGeo = new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-  const hull = new THREE.Mesh(hullGeo, woodMat);
-  hull.scale.set(1.35, 0.55, 0.62);
-  hull.castShadow = true;
-  boat.add(hull);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(1, 24), plankMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.scale.set(1.34, 0.6, 1);
-  boat.add(floor);
-  const wall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.08, 0.26, 28, 1, true), plankMat);
-  wall.scale.set(1.35, 1, 0.62);
-  wall.position.y = 0.13;
-  wall.castShadow = true;
-  boat.add(wall);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.03, 0.06, 10, 28), darkWood);
-  rim.rotation.x = Math.PI / 2;
-  rim.scale.set(1.35, 0.62, 1);
-  rim.position.y = 0.26;
-  boat.add(rim);
-  for (const bz of [-0.34, 0.18]) {
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 0.26), plankMat);
-    bench.position.set(0, 0.24, bz);
-    bench.castShadow = true;
-    boat.add(bench);
+  // 材质：温润原木 + 甲板木纹 + 红白帆布
+  const hullMat = std(0xb4733d, { map: woodTex, roughness: .58, metalness: .02 });
+  const trimMat = std(0x7d4f2a, { map: woodTex, roughness: .68 });
+  const deckMat = std(0xc98d52, { map: woodTex, roughness: .74 });
+  const sparMat = std(0x8c5a2f, { map: woodTex, roughness: .62 });
+  const lineMat = std(0xe8dcc2, { roughness: .85 });
+
+  const boatSailTex = canvasTex(512, 256, (x, w, h) => {
+    x.fillStyle = '#f3ece0'; x.fillRect(0, 0, w, h);
+    const cols = 7;
+    for (let i = 0; i < cols; i++) {
+      x.fillStyle = i % 2 === 0 ? '#bd2f2f' : '#f5efe2';
+      x.fillRect(i * w / cols, 0, w / cols, h);
+    }
+    x.fillStyle = 'rgba(80,40,15,.08)';
+    for (let i = 0; i < 24; i++) {
+      x.fillRect(rand() * w, 0, rr(.5, 1.5), h);
+    }
+  });
+
+  const L = 1.22;
+  const hullHalfWidth = (x) => {
+    const n = Math.min(1, Math.max(-1, x / L));
+    return .385 * Math.pow(Math.sqrt(Math.max(0, 1 - n * n)), .72);
+  };
+  const sheerY = (x) => {
+    const n = Math.min(1, Math.max(-1, x / L));
+    return .20 + .11 * Math.pow(Math.abs(n), 2.1);
+  };
+  const hullDepth = (x) => {
+    const n = Math.min(1, Math.max(-1, x / L));
+    return .40 * (1 - Math.pow(Math.abs(n), 1.55));
+  };
+
+  function gridGeometry(xCount, yCount, positionAt, uvScale = [4, 1]) {
+    const pos = [], uv = [], idx = [];
+    for (let i = 0; i <= xCount; i++) {
+      for (let j = 0; j <= yCount; j++) {
+        const pt = positionAt(i / xCount, j / yCount);
+        pos.push(pt.x, pt.y, pt.z);
+        uv.push(i / xCount * uvScale[0], j / yCount * uvScale[1]);
+      }
+    }
+    for (let i = 0; i < xCount; i++) {
+      for (let j = 0; j < yCount; j++) {
+        const a = i * (yCount + 1) + j, b = a + 1, c = a + yCount + 1, d = c + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
   }
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 1.5, 7), darkWood);
-  mast.position.set(-0.15, 0.85, 0);
+
+  // 完整封闭船壳：从左舷上缘绕过龙骨，再接到右舷上缘
+  const hullGeo = gridGeometry(96, 30, (u, v) => {
+    const x = -L + u * L * 2;
+    const a = v * Math.PI;
+    const w = hullHalfWidth(x);
+    return new THREE.Vector3(
+      x,
+      sheerY(x) - hullDepth(x) * Math.sin(a),
+      -w * Math.cos(a)
+    );
+  }, [8, 3]);
+  const hull = new THREE.Mesh(hullGeo, new THREE.MeshStandardMaterial({
+    map: woodTex, color: 0xb4733d, roughness: .56, metalness: .015, side: THREE.DoubleSide
+  }));
+  hull.castShadow = hull.receiveShadow = true;
+  boat.add(hull);
+
+  // 实心甲板，带有中拱与船舷弧线
+  const deckGeo = gridGeometry(82, 20, (u, v) => {
+    const x = -L + u * L * 2;
+    const t = v * 2 - 1;
+    const w = Math.max(0, hullHalfWidth(x) * .975);
+    return new THREE.Vector3(
+      x,
+      sheerY(x) - .024 + .024 * (1 - Math.abs(t)),
+      t * w
+    );
+  }, [10, 4]);
+
+  // 甲板顶面必须朝上；翻转默认网格的三角形方向，避免俯视看穿到水面。
+  {
+    const idx = deckGeo.getIndex().array;
+    for (let i = 0; i < idx.length; i += 3) {
+      const t = idx[i + 1];
+      idx[i + 1] = idx[i + 2];
+      idx[i + 2] = t;
+    }
+    deckGeo.setIndex(Array.from(idx));
+    deckGeo.computeVertexNormals();
+  }
+
+  const deck = new THREE.Mesh(deckGeo, deckMat);
+  deck.receiveShadow = true;
+  boat.add(deck);
+
+  // 船舷上缘与外板板缝线条
+  function edgeCurve(side, height, sectionAngle = 0, radius = .016) {
+    const pts = [];
+    for (let i = 0; i <= 70; i++) {
+      const x = -L + i / 70 * L * 2;
+      const w = hullHalfWidth(x);
+      const y = height === 'sheer' ? sheerY(x) + .008 : sheerY(x) - hullDepth(x) * Math.sin(sectionAngle);
+      pts.push(new THREE.Vector3(x, y, side * w * Math.cos(sectionAngle)));
+    }
+    const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 100, radius, 6, false);
+    const mesh = new THREE.Mesh(geo, trimMat);
+    mesh.castShadow = true;
+    return mesh;
+  }
+  for (const side of [1, -1]) {
+    boat.add(edgeCurve(side, 'sheer', 0, .021));
+    boat.add(edgeCurve(side, 'lap', Math.PI * .38, .011));
+    boat.add(edgeCurve(side, 'lap', Math.PI * .62, .011));
+  }
+
+  // 中部木箱 / 舱口围板（保持甲板封闭，不做漏水开口）
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(.76, .10, .44), trimMat);
+  trunk.position.set(-.18, .27, 0);
+  trunk.castShadow = trunk.receiveShadow = true;
+  boat.add(trunk);
+
+  const trunkLid = new THREE.Mesh(new THREE.BoxGeometry(.70, .028, .38), deckMat);
+  trunkLid.position.set(-.18, .335, 0);
+  trunkLid.castShadow = true;
+  boat.add(trunkLid);
+
+  const bowHatch = new THREE.Mesh(new THREE.BoxGeometry(.34, .055, .30), trimMat);
+  bowHatch.position.set(.56, .29, 0);
+  bowHatch.castShadow = true;
+  boat.add(bowHatch);
+
+  const sternHatch = new THREE.Mesh(new THREE.BoxGeometry(.40, .06, .34), trimMat);
+  sternHatch.position.set(-.82, .29, 0);
+  sternHatch.castShadow = true;
+  boat.add(sternHatch);
+
+  // 龙骨、舵与舵柄
+  const keel = new THREE.Mesh(new THREE.BoxGeometry(1.75, .075, .032), trimMat);
+  keel.position.set(.02, -.24, 0);
+  keel.castShadow = true;
+  boat.add(keel);
+
+  const rudder = new THREE.Mesh(new THREE.BoxGeometry(.20, .30, .026), trimMat);
+  rudder.position.set(-1.20, -.03, 0);
+  rudder.castShadow = true;
+  boat.add(rudder);
+
+  const tiller = new THREE.Mesh(new THREE.CylinderGeometry(.016, .018, .40, 8), sparMat);
+  tiller.rotation.z = Math.PI / 2 - .12;
+  tiller.position.set(-1.00, .24, 0);
+  tiller.castShadow = true;
+  boat.add(tiller);
+
+  // 主桅、斜桁与帆桁
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.025, .040, 1.78, 12), sparMat);
+  mast.position.set(.18, 1.10, 0);
   mast.castShadow = true;
   boat.add(mast);
-  const yard = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.9, 6), darkWood);
-  yard.rotation.z = Math.PI / 2;
-  yard.position.set(-0.15, 1.32, 0);
-  boat.add(yard);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.26, 10), darkWood);
-  barrel.position.set(-0.55, 0.34, -0.1);
-  barrel.castShadow = true;
-  boat.add(barrel);
-  const barrelBand = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.145, 0.05, 10), std(0x4a3018));
-  barrelBand.position.set(-0.55, 0.34, -0.1);
-  boat.add(barrelBand);
-  const oarMat = std(0x9c6b3e);
-  for (const s of [1, -1]) {
-    const oar = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.3, 6), oarMat);
-    oar.rotation.z = s * 1.2;
-    oar.rotation.x = 0.35;
-    oar.position.set(0.35, 0.2, s * 0.4);
-    boat.add(oar);
+
+  const boom = new THREE.Mesh(new THREE.CylinderGeometry(.017, .020, 1.00, 9), sparMat);
+  boom.rotation.z = Math.PI / 2;
+  boom.position.set(-.33, .40, 0);
+  boom.castShadow = true;
+  boat.add(boom);
+
+  const gaff = new THREE.Mesh(new THREE.CylinderGeometry(.015, .019, 1.00, 9), sparMat);
+  // 斜桁应从桅杆处向船尾上方扬起，而不是垂向帆面。
+  gaff.rotation.z = -Math.atan2(.38, .93);
+  gaff.position.set(-.285, 1.62, 0);
+  gaff.castShadow = true;
+  boat.add(gaff);
+
+  // 红白条纹主帆，带轻微受风弧度
+  const sailGeo = new THREE.PlaneGeometry(.90, 1.02, 20, 14);
+  {
+    const pa = sailGeo.attributes.position;
+    for (let i = 0; i < pa.count; i++) {
+      const lx = pa.getX(i), ly = pa.getY(i);
+      pa.setZ(i, -.028 + .030 * Math.sin((lx / .90 + .5) * Math.PI));
+      // 上缘随斜桁向船尾扬起，下缘保持贴住帆桁。
+      const t = THREE.MathUtils.clamp((ly + .51) / 1.02, 0, 1);
+      const topLocal = .703 - .490 * lx;
+      pa.setY(i, -.51 + t * (topLocal + .51));
+    }
+    sailGeo.computeVertexNormals();
   }
-  for (const s of [1, -1]) {
-    const fender = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.045, 8, 14), std(0x2e2a26, { roughness: 0.9 }));
-    fender.position.set(s * 0.2, 0.02, s * 0.6);
-    boat.add(fender);
+  const sail = new THREE.Mesh(sailGeo, new THREE.MeshStandardMaterial({
+    map: boatSailTex, roughness: .68, side: THREE.DoubleSide
+  }));
+  sail.position.set(-.36, .93, .012);
+  sail.rotation.y = .04;
+  sail.castShadow = true;
+  boat.add(sail);
+
+  // 索具：前支索、后支索、两侧侧支索
+  function rigging(from, to, radius = .006) {
+    const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to);
+    const dir = b.clone().sub(a), len = dir.length();
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 5), lineMat);
+    mesh.position.copy(a).addScaledVector(dir, .5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    return mesh;
   }
+  boat.add(rigging([.18, 1.88, 0], [1.21, .24, 0], .005));
+  boat.add(rigging([.18, 1.88, 0], [-1.19, .30, 0], .005));
+  boat.add(rigging([.18, 1.58, 0], [.18, .28, .31], .0045));
+  boat.add(rigging([.18, 1.58, 0], [.18, .28, -.31], .0045));
+  boat.add(rigging([.18, 1.86, 0], [-.72, 1.81, 0], .004));
+
   boat.position.set(boatPos.x, 0, boatPos.y);
   boat.rotation.y = -PIER_A + 1.8;
   boat.scale.setScalar(0.9);
@@ -1476,7 +1796,8 @@ function makeGull() {
 }
 for (let i = 0; i < 5; i++) {
   const b = makeGull();
-  b.userData.u = { a: rand() * 7, sp: rr(0.25, 0.45) * (i % 2 ? 1 : -1), r: rr(8, 11.5), h: rr(5.6, 7.6), ph: rand() * 7, mode: 'fly', rest: null };
+  const gr = rr(8, 11.5), gh = rr(5.6, 7.6);
+  b.userData.u = { a: rand() * 7, sp: rr(0.25, 0.45) * (i % 2 ? 1 : -1), r: gr, h: gh, baseR: gr, baseH: gh, ph: rand() * 7, mode: 'fly', rest: null, away: 0 };
   b.scale.setScalar(rr(0.4, 0.575));
   scene.add(b);
   gulls.push(b);
@@ -1671,6 +1992,324 @@ function spawnRipple(x, z, scale = 1) {
   r.m.userData = { scale };
 }
 
+/* ================= 海上航行 · 钓鱼玩法 ================= */
+const voyageUI = {
+  returnButton: document.getElementById('btn-return'),
+  panel: document.getElementById('voyage-card'),
+  status: document.getElementById('voyage-status'),
+  fill: document.getElementById('voyage-fill'),
+  catchList: document.getElementById('catch-list')
+};
+const destinationMarker = new THREE.Mesh(
+  new THREE.RingGeometry(.42, .56, 48),
+  new THREE.MeshBasicMaterial({ color: 0xffd45c, transparent: true, opacity: .9, side: THREE.DoubleSide, depthWrite: false })
+);
+destinationMarker.rotation.x = -Math.PI / 2;
+destinationMarker.position.y = .08;
+destinationMarker.visible = false;
+scene.add(destinationMarker);
+
+const fishingRod = new THREE.Group();
+{
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(.008, .013, .75, 6), std(0x7c5030, { roughness: .6 }));
+  rod.rotation.z = -0.72;
+  rod.position.set(.20, .20, 0);
+  fishingRod.add(rod);
+  const line = new THREE.Mesh(new THREE.CylinderGeometry(.002, .002, .34, 4), std(0xffffff, { transparent: true, opacity: .5 }));
+  line.position.set(.50, -.05, 0);
+  fishingRod.add(line);
+  fishingRod.position.set(.44, .31, .02);
+  fishingRod.visible = false;
+  boat.add(fishingRod);
+}
+
+const pierDir = new THREE.Vector2(Math.cos(PIER_A), Math.sin(PIER_A));
+const pierPerp = new THREE.Vector2(-pierDir.y, pierDir.x);
+const pierBoard = new THREE.Vector2(
+  pierDir.x * 6.35 + pierPerp.x * .35,
+  pierDir.y * 6.35 + pierPerp.y * .35
+);
+const boatHome = boatPos.clone();
+const boatHomeHeading = -PIER_A + 1.8;
+const voyage = {
+  mode: 'island',
+  heading: boatHomeHeading,
+  speed: 0,
+  target: new THREE.Vector2(),
+  phaseTimer: 0,
+  biteWindow: 0,
+  biteElapsed: 0,
+  landPosition: new THREE.Vector3(),
+  landRotationY: 0,
+  hasSailed: false
+};
+
+function headingTo(from, to) {
+  return Math.atan2(-(to.y - from.y), to.x - from.x);
+}
+function turnToward(current, target, maxStep) {
+  const d = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  return current + Math.max(-maxStep, Math.min(maxStep, d));
+}
+function setVoyageStatus(text) {
+  voyageUI.status.textContent = text;
+}
+function showVoyagePanel() {
+  voyageUI.panel.classList.remove('hidden');
+}
+function hideVoyagePanel() {
+  voyageUI.panel.classList.add('hidden');
+}
+// 上船入口已改为点击船体；保留空函数以免旧状态调用失效。
+function setVoyageButton() {}
+function setReturnButton(text, enabled) {
+  voyageUI.returnButton.textContent = text;
+  voyageUI.returnButton.disabled = !enabled;
+}
+function setVoyageFill(v) {
+  voyageUI.fill.style.width = Math.max(0, Math.min(100, v * 100)) + '%';
+}
+const fishTypes = [
+  { name: '银鳞小鱼', emoji: '🐟', min: .18, max: .34, weight: 34 },
+  { name: '珊瑚鲷', emoji: '🐠', min: .24, max: .46, weight: 26 },
+  { name: '蓝纹海鲤', emoji: '🐡', min: .32, max: .62, weight: 18 },
+  { name: '黄昏旗鱼', emoji: '🗡️', min: .58, max: .96, weight: 9, sunsetOnly: true },
+  { name: '月光灯笼鱼', emoji: '🏮', min: .20, max: .38, weight: 9, nightOnly: true },
+  { name: '金鳞王鱼', emoji: '👑', min: .70, max: 1.12, weight: 4 }
+];
+function randomFishType() {
+  const night = envTarget === modeTargets.moon;
+  const sunset = envTarget === modeTargets.sunset;
+  const pool = fishTypes.filter(f => (!f.nightOnly || night) && (!f.sunsetOnly || sunset));
+  let total = pool.reduce((sum, f) => sum + f.weight, 0);
+  let roll = Math.random() * total;
+  for (const f of pool) {
+    roll -= f.weight;
+    if (roll <= 0) return f;
+  }
+  return pool[0] || fishTypes[0];
+}
+function addCatch() {
+  const f = randomFishType();
+  const size = rr(f.min, f.max);
+  const rarity = size > f.min + (f.max - f.min) * .76 ? '稀有' : '普通';
+  const li = document.createElement('li');
+  li.textContent = `${f.emoji} ${f.name} · ${size.toFixed(2)}m · ${rarity}`;
+  voyageUI.catchList.prepend(li);
+  while (voyageUI.catchList.children.length > 4) voyageUI.catchList.lastElementChild.remove();
+  return { name: f.name, size };
+}
+function beginFishing() {
+  voyage.mode = 'fishing';
+  voyage.phaseTimer = rr(1.1, 3.2);
+  voyage.biteWindow = .82;
+  voyage.biteElapsed = 0;
+  fishingRod.visible = true;
+  setVoyageButton('⏳ 等待咬钩…', false);
+  setReturnButton('返航中不可用', false);
+  setVoyageStatus('鱼线已下，保持安静……');
+  setVoyageFill(0);
+}
+function endFishing(success) {
+  fishingRod.visible = false;
+  const p = boatPos;
+  if (success) {
+    const fish = addCatch();
+    setVoyageStatus(`钓到了 ${fish.name}！可以继续换点，或返航下船。`);
+    spawnRipple(p.x + Math.cos(voyage.heading) * 1.2, p.y - Math.sin(voyage.heading) * 1.2, 1.1);
+  } else {
+    setVoyageStatus('鱼儿脱钩跑了……可以再试一次。');
+  }
+  voyage.mode = 'fishReady';
+  setVoyageButton('🎣 再下竿', true);
+  setReturnButton('⚓ 返航下船', true);
+  setVoyageFill(0);
+}
+function startSailTo(x, z) {
+  voyage.target.set(x, z);
+  destinationMarker.position.set(x, .08, z);
+  destinationMarker.visible = true;
+  voyage.mode = 'sail';
+  voyage.hasSailed = true;
+  voyage.phaseTimer = 0;
+  voyage.biteElapsed = 0;
+  fishingRod.visible = false;
+  setVoyageButton('⛵ 航行中…', false);
+  setReturnButton('⚓ 取消并返航', true);
+  setVoyageStatus('正在驶向标记的海域……');
+  setVoyageFill(0);
+}
+function returnToPier() {
+  startSailTo(boatHome.x, boatHome.y);
+  voyage.mode = 'return';
+  setVoyageButton('⛵ 返航中…', false);
+  setReturnButton('返航中…', false);
+  setVoyageStatus('正在返航回码头……');
+}
+function disembark() {
+  boat.remove(sheepChar);
+  island.add(sheepChar);
+  sheepChar.position.set(pierBoard.x, topY(Math.hypot(pierBoard.x - ISLAND_C.x, pierBoard.y - ISLAND_C.y)) + .05, pierBoard.y);
+  sheepChar.rotation.set(0, Math.atan2(-pierDir.y, pierDir.x), 0);
+  // 保留原先在岛上的 idle 高度，避免回程结束被埋进地形。
+  // 不改写原本的家；下船后先回到码头旁，再自动绕行返回篝火旁原位。
+  sheepTask.path = planIslandPath({ x: pierBoard.x, z: pierBoard.y }, { x: sheepTask.home.x, z: sheepTask.home.y });
+  sheepTask.pathIndex = 0;
+  setGroundTarget(sheepTask.target, sheepTask.path[0].x, sheepTask.path[0].y);
+  sheepTask.phase = 'return'; sheepTask.tree = null;
+  voyage.mode = 'island';
+  voyage.hasSailed = false;
+  fishingRod.visible = false;
+  destinationMarker.visible = false;
+  hideVoyagePanel();
+  setVoyageButton('🚤 再上船', true);
+  setReturnButton('暂不可用', false);
+  setVoyageStatus('已下船。想出海时再回到码头。');
+  setVoyageFill(0);
+}
+function requestBoardBoat() {
+  if (voyage.mode !== 'island' || !sheepChar || sheepChar.parent !== island) return;
+
+  // 点击船体也会立刻打断椰子树互动。
+  const previousTree = sheepTask.tree;
+  if (previousTree && previousTree.userData && previousTree.userData.top) {
+    previousTree.userData.top.rotation.z = 0;
+  }
+  sheepTask.phase = 'idle';
+  sheepTask.tree = null;
+  sheepTask.path = [];
+  sheepTask.pathIndex = 0;
+  sheepTask.spawned = 0;
+  sheepTask.cocoTimer = 0;
+  sheepChar.rotation.z = 0;
+
+  voyage.mode = 'toBoat';
+  showVoyagePanel();
+  setReturnButton('暂不可用', false);
+  setVoyageStatus('主角正在走向码头……');
+}
+voyageUI.returnButton.addEventListener('click', () => {
+  if (voyage.mode === 'docked') {
+    disembark();
+    return;
+  }
+  if (voyage.mode === 'sail' || voyage.mode === 'fishReady' || voyage.mode === 'fishing' || voyage.mode === 'bite') {
+    fishingRod.visible = false;
+    returnToPier();
+  }
+});
+function updateVoyage(dt, t) {
+  if (voyage.mode === 'toBoat') {
+    const dx = pierBoard.x - sheepChar.position.x;
+    const dz = pierBoard.y - sheepChar.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > .08) {
+      const step = Math.min(dist, dt * 1.05);
+      sheepChar.position.x += dx / dist * step;
+      sheepChar.position.z += dz / dist * step;
+      sheepChar.rotation.y = Math.atan2(dx, dz);
+      sheepChar.position.y = topY(Math.hypot(sheepChar.position.x - ISLAND_C.x, sheepChar.position.z - ISLAND_C.y)) + .05 + Math.abs(Math.sin(t * 8)) * .018;
+    } else {
+      voyage.landPosition.copy(sheepChar.position);
+      voyage.landRotationY = sheepChar.rotation.y;
+      island.remove(sheepChar);
+      boat.add(sheepChar);
+      sheepChar.position.set(.44, .24, .03);
+      sheepChar.rotation.set(0, Math.PI / 2, 0);
+      voyage.mode = 'docked';
+      voyage.hasSailed = false;
+      voyage.heading = boatHomeHeading;
+      controls.autoRotate = false;
+      document.getElementById('btn-rotate').classList.remove('on');
+      document.getElementById('btn-rotate').textContent = '自动旋转：关';
+      setVoyageButton('🌊 点海面选目的地', true);
+      setReturnButton('🚪 暂不下船', true);
+      setVoyageStatus('已上船！点击海面标记目的地。');
+    }
+  } else if (voyage.mode === 'sail' || voyage.mode === 'return') {
+    const desired = headingTo(boatPos, voyage.target);
+    const d = Math.atan2(Math.sin(desired - voyage.heading), Math.cos(desired - voyage.heading));
+    voyage.heading = turnToward(voyage.heading, desired, dt * 1.7);
+    const dist = boatPos.distanceTo(voyage.target);
+    const aim = dist > 2.4 ? 2.35 : 1.15;
+    const alignment = 1 - Math.min(1, Math.abs(d) / Math.PI);
+    voyage.speed += (aim * alignment - voyage.speed) * (1 - Math.exp(-dt * 2.6));
+    boatPos.x += Math.cos(voyage.heading) * voyage.speed * dt;
+    boatPos.y += -Math.sin(voyage.heading) * voyage.speed * dt;
+    boatPos.x = Math.max(-HALF + 1.3, Math.min(HALF - 1.3, boatPos.x));
+    boatPos.y = Math.max(-HALF + 1.3, Math.min(HALF - 1.3, boatPos.y));
+    setVoyageFill(1 - Math.min(1, dist / Math.max(1, boatHome.distanceTo(voyage.target))));
+    if (dist < .14) {
+      boatPos.copy(voyage.target);
+      voyage.speed = 0;
+      if (voyage.mode === 'return') {
+        voyage.mode = 'docked';
+        setVoyageButton('🚪 下船', true);
+        setReturnButton('🚪 下船', true);
+        setVoyageStatus('回到码头了。可以下船，或另选海域。');
+      } else {
+        voyage.mode = 'fishReady';
+        setVoyageButton('🎣 下竿钓鱼', true);
+        setReturnButton('⚓ 返航下船', true);
+        setVoyageStatus('已到钓点！准备下竿。');
+      }
+    }
+  } else if (voyage.mode === 'docked') {
+    voyage.heading += Math.atan2(Math.sin(boatHomeHeading - voyage.heading), Math.cos(boatHomeHeading - voyage.heading)) * (1 - Math.exp(-dt * 3));
+  } else if (voyage.mode === 'fishing') {
+    voyage.phaseTimer -= dt;
+    setVoyageFill(.12 + Math.sin(t * 3) * .04);
+    if (voyage.phaseTimer <= 0) {
+      voyage.mode = 'bite';
+      voyage.biteElapsed = 0;
+      setVoyageButton('🎣 拉竿！', true);
+      setVoyageStatus('咬钩了！立刻拉竿！');
+      spawnRipple(boatPos.x + rr(-1.0, 1.0), boatPos.y + rr(-1.0, 1.0), .8);
+    }
+  } else if (voyage.mode === 'bite') {
+    voyage.biteElapsed += dt;
+    const left = Math.max(0, voyage.biteWindow - voyage.biteElapsed);
+    setVoyageFill(left / voyage.biteWindow);
+    if (left <= 0) endFishing(false);
+  }
+
+  // 船体随浪起伏；航行时增加俯仰与侧倾。
+  const waveY = waveH(boatPos.x, boatPos.y, t) * .9 + .06;
+  boat.position.set(boatPos.x, waveY, boatPos.y);
+  boat.rotation.y = voyage.heading;
+  const waveRoll = (waveH(boatPos.x + .7, boatPos.y, t) - waveH(boatPos.x - .7, boatPos.y, t)) * .22;
+  const wavePitch = (waveH(boatPos.x, boatPos.y + .7, t) - waveH(boatPos.x, boatPos.y - .7, t)) * .22;
+  boat.rotation.z = waveRoll + Math.sin(t * 1.1) * .02 + voyage.speed * .015;
+  boat.rotation.x = wavePitch - voyage.speed * .018;
+
+  if (voyage.mode === 'sail' || voyage.mode === 'return') {
+    const sternX = boatPos.x - Math.cos(voyage.heading) * 1.15;
+    const sternZ = boatPos.y + Math.sin(voyage.heading) * 1.15;
+    if (Math.random() < dt * 18) spawnRipple(sternX + rr(-.12, .12), sternZ + rr(-.12, .12), .75);
+  } else if (Math.random() < dt * .4) {
+    spawnRipple(boatPos.x + rr(-.8, .8), boatPos.y + rr(-.5, .5), .6);
+  }
+
+  // 主角随船保持坐姿/站位，并轻微呼吸。
+  if (sheepChar.parent === boat) {
+    sheepChar.position.y = .24 + Math.sin(t * 2.4) * .008;
+    sheepChar.rotation.z = Math.sin(t * 1.7) * .012;
+  }
+
+  // 目的地标记脉动。
+  if (destinationMarker.visible) {
+    destinationMarker.material.opacity = .62 + Math.sin(t * 5) * .22;
+    const s = 1 + Math.sin(t * 3.2) * .08;
+    destinationMarker.scale.set(s, s, 1);
+  }
+
+  // 航行/停泊时镜头轻轻跟随船体。
+  if (sheepChar.parent === boat) {
+    controls.target.lerp(new THREE.Vector3(boatPos.x, waveY - .35, boatPos.y), 1 - Math.exp(-dt * 2.4));
+  }
+
+}
+
 /* ================= 云 ================= */
 const clouds = [];
 {
@@ -1723,6 +2362,11 @@ renderer.domElement.addEventListener('pointerup', (e) => {
     while (bird && !gulls.includes(bird)) bird = bird.parent;
     if (bird && startGullReturnNow(bird)) return;
   }
+  const boatHits = raycaster.intersectObject(boat, true);
+  if (boatHits.length) {
+    requestBoardBoat();
+    return;
+  }
   const palmHits = raycaster.intersectObjects(palms, true);
   if (palmHits.length) {
     let obj = palmHits[0].object;
@@ -1735,10 +2379,22 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const hits = raycaster.intersectObject(water, false);
   if (hits.length) {
     const p = hits[0].point;
-    if (Math.abs(p.x) < HALF - 0.6 && Math.abs(p.z) < HALF - 0.6) feedAt(p.x, p.z, 6);
+    const insideWater = Math.abs(p.x) < HALF - 1.25 && Math.abs(p.z) < HALF - 1.25;
+    const clearOfIsland = Math.hypot(p.x - ISLAND_C.x, p.z - ISLAND_C.y) > 8.15;
+    const aboardModes = ['docked', 'sail', 'return', 'fishReady', 'fishing', 'bite'];
+    if (aboardModes.includes(voyage.mode) && insideWater && clearOfIsland) {
+      // 点击即改航：航行/返航/钓鱼/等待咬钩都会立刻取消当前目标。
+      startSailTo(p.x, p.z);
+      return;
+    }
+    if (aboardModes.includes(voyage.mode)) {
+      setVoyageStatus('这里不能停船，请选离岛稍远的海面。');
+      return;
+    }
+    if (insideWater && clearOfIsland) feedAt(p.x, p.z, 6);
   }
 });
-document.getElementById('hint').textContent = '拖拽旋转 · 滚轮缩放 · 点击水面投喂 · 点击椰子树/海鸥互动';
+document.getElementById('hint').textContent = '拖拽旋转 · 滚轮缩放 · 点击木船上船 · 点击海面航行/投喂';
 
 /* ================= 动画 ================= */
 const clock = new THREE.Clock();
@@ -1796,9 +2452,13 @@ function animate() {
       u.baseRZ + Math.cos(t * 0.17 * u.sp + u.ph) * 0.08
     );
     u.bell.scale.set(1 + q * 0.14, 1 - q * 0.17, 1 + q * 0.14);
+
+    const nightHaloOn = envTarget === modeTargets.moon && u.night;
+    const nightPulse = .82 + Math.sin(t * 1.9 * u.sp + u.ph) * .18;
+    u.nightHalo.material.opacity = nightHaloOn ? nightPulse * .62 : 0;
   }
 
-  if (sheepChar) {
+  if (sheepChar && voyage.mode !== 'toBoat' && sheepChar.parent !== boat) {
     const st = sheepTask;
     const groundY = topY(Math.hypot(sheepChar.position.x - ISLAND_C.x, sheepChar.position.z - ISLAND_C.y)) + 0.05;
     if (st.phase === 'walk') {
@@ -1810,7 +2470,10 @@ function animate() {
         sheepChar.rotation.y = Math.atan2(dx, dz);
       }
       sheepChar.position.y = groundY + Math.abs(Math.sin(t * 8.0)) * 0.018;
-      if (dist < 0.06) {
+      if (dist < 0.10 && st.pathIndex < st.path.length - 1) {
+        st.pathIndex++;
+        setGroundTarget(st.target, st.path[st.pathIndex].x, st.path[st.pathIndex].y);
+      } else if (dist < 0.06 && st.pathIndex >= st.path.length - 1 && Math.hypot(sheepChar.position.x - st.tree.position.x, sheepChar.position.z - st.tree.position.z) < 1.05) {
         st.phase = 'shake'; st.timer = 1.7; st.spawned = 0; st.cocoTimer = 0.28;
         sheepChar.rotation.y = Math.atan2(st.tree.position.x - sheepChar.position.x, st.tree.position.z - sheepChar.position.z);
       }
@@ -1825,9 +2488,12 @@ function animate() {
       if (st.timer <= 0) {
         top.rotation.z = 0; sheepChar.rotation.z = 0;
         st.phase = 'return';
+        st.path = planIslandPath({ x: sheepChar.position.x, z: sheepChar.position.z }, { x: st.home.x, z: st.home.y });
+        st.pathIndex = 0;
+        setGroundTarget(st.target, st.path[0].x, st.path[0].y);
       }
     } else if (st.phase === 'return') {
-      const dx = st.home.x - sheepChar.position.x, dz = st.home.y - sheepChar.position.z;
+      const dx = st.target.x - sheepChar.position.x, dz = st.target.z - sheepChar.position.z;
       const dist = Math.hypot(dx, dz), step = Math.min(dist, dt * 0.85);
       if (dist > 0.001) {
         sheepChar.position.x += dx / dist * step;
@@ -1835,10 +2501,13 @@ function animate() {
         sheepChar.rotation.y = Math.atan2(dx, dz);
       }
       sheepChar.position.y = groundY + Math.abs(Math.sin(t * 7.2)) * 0.015;
-      if (dist < 0.05) {
+      if (dist < 0.10 && st.pathIndex < st.path.length - 1) {
+        st.pathIndex++;
+        setGroundTarget(st.target, st.path[st.pathIndex].x, st.path[st.pathIndex].y);
+      } else if (dist < 0.05 && st.pathIndex >= st.path.length - 1) {
         sheepChar.position.set(st.home.x, sheepChar.userData.by, st.home.y);
         sheepChar.rotation.set(0, sheepChar.userData.ry, 0);
-        st.phase = 'idle'; st.tree = null;
+        st.phase = 'idle'; st.tree = null; st.path = []; st.pathIndex = 0;
       }
     } else {
       sheepChar.position.y = sheepChar.userData.by + Math.sin(t * 2.2) * 0.012;
@@ -1933,13 +2602,21 @@ function animate() {
     whalePecR.rotation.x = Math.sin(t * 1.5 + 1) * 0.18;
   }
 
+  const nightBirds = envTarget === modeTargets.moon;
   gullRestTimer -= dt;
-  if (gullRestTimer <= 0) {
+  if (nightBirds) {
+    for (const b of gulls) startGullReturnNow(b);
+    gullRestTimer = Math.max(gullRestTimer, 3);
+  } else if (gullRestTimer <= 0) {
     gullRestTimer = sendGullToPerch() ? rr(16.0, 25.0) : 3.0;
   }
 
   for (const b of gulls) {
     const u = b.userData.u, r = b.userData.rest;
+    u.away += ((nightBirds ? 1 : 0) - u.away) * (1 - Math.exp(-dt * .72));
+    u.r = u.baseR + u.away * 22;
+    u.h = u.baseH + u.away * 12;
+    b.visible = !nightBirds || u.away < .97;
     if (u.mode === 'toPerch') {
       r.progress += dt / r.dur;
       const k = Math.min(r.progress, 1), e = k * k * (3 - 2 * k);
@@ -2003,12 +2680,7 @@ function animate() {
     }
   }
 
-  {
-    boat.position.y = waveH(boatPos.x, boatPos.y, t) * 0.9 + 0.06;
-    boat.rotation.z = (waveH(boatPos.x + 0.7, boatPos.y, t) - waveH(boatPos.x - 0.7, boatPos.y, t)) * 0.22 + Math.sin(t * 1.1) * 0.02;
-    boat.rotation.x = (waveH(boatPos.x, boatPos.y + 0.7, t) - waveH(boatPos.x, boatPos.y - 0.7, t)) * 0.22;
-    if (Math.random() < dt * 0.4) spawnRipple(boatPos.x + rr(-0.8, 0.8), boatPos.y + rr(-0.5, 0.5), 0.6);
-  }
+  updateVoyage(dt, t);
 
   for (const r of ripplePool) {
     if (!r.m.visible) continue;
