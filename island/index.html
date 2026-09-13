@@ -43,6 +43,16 @@
   #btn-return:hover { background: rgba(20,123,179,.2); }
   #btn-return:disabled { opacity: .35; cursor: not-allowed; }
   @media (max-width: 700px) { #voyage-card { width: calc(100vw - 36px); top: auto; bottom: 108px; } }
+  #sleep-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center;
+    background: radial-gradient(circle at 50% 48%, rgba(6,14,30,.42), rgba(3,8,18,.82));
+    opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+  #sleep-overlay.active { opacity: 1; pointer-events: auto; }
+  .sleep-card { padding: 20px 30px; border-radius: 18px; background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.20); color: #f7fbff; text-align: center;
+    backdrop-filter: blur(12px); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+  .sleep-card .emoji { font-size: 34px; }
+  .sleep-card h2 { margin: 8px 0 4px; font-size: 20px; letter-spacing: 1px; }
+  .sleep-card p { margin: 0; font-size: 13px; opacity: .78; }
   #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: #dfeefb; color: #3a7ea8; font-size: 15px; letter-spacing: 2px;
     transition: opacity .5s; z-index: 10; }
@@ -50,6 +60,9 @@
 </style>
 </head>
 <body>
+<div id="sleep-overlay">
+  <div class="sleep-card"><div class="emoji">💤</div><h2>睡觉中</h2><p id="sleep-text">时间正在流逝…</p></div>
+</div>
 <div id="loading">正在生成海岛 …</div>
 <div id="vignette"></div>
 <div id="hud">
@@ -179,6 +192,13 @@ const modeTargets = {
     fillColor: new THREE.Color(0xff9a7a), fillI: 0.75, hemiI: 0.34,
     fog: new THREE.Color(0xecc4d4), exposure: 1.0, lampI: 8, beamO: 0.15, fireI: 3.2, waterEnv: 0.35, envInt: 0.5, jelly: 0.65
   },
+  dawn: {
+    top: new THREE.Color(0x4f8fd0), bot: new THREE.Color(0xffd9b0), glow: new THREE.Color(0xffd9a0),
+    sunDir: new THREE.Vector3(0.75, 0.28, 0.18).normalize(),
+    sunColor: new THREE.Color(0xffd0a0), sunI: 1.6,
+    fillColor: new THREE.Color(0xffc9a0), fillI: 0.55, hemiI: 0.25,
+    fog: new THREE.Color(0xdceaf4), exposure: 0.96, lampI: 7, beamO: 0.12, fireI: 1.0, waterEnv: 0.22, envInt: 0.32, jelly: 0.45
+  },
   moon: {
     top: new THREE.Color(0x0a1230), bot: new THREE.Color(0x27406b), glow: new THREE.Color(0xbfd4ff),
     sunDir: new THREE.Vector3(-0.45, 0.72, -0.35).normalize(),
@@ -195,6 +215,7 @@ const env = {
   fog: modeTargets.day.fog.clone(), exposure: 1.0, lampI: 4, beamO: 0.06, fireI: 0, waterEnv: 0.3, envInt: 0.5, jelly: 0.25
 };
 let envTarget = modeTargets.day;
+let envMode = 'day';
 function stepEnv(dt) {
   const k = 1 - Math.exp(-dt * 2.2), t = envTarget;
   env.top.lerp(t.top, k); env.bot.lerp(t.bot, k); env.glow.lerp(t.glow, k);
@@ -215,6 +236,8 @@ function stepEnv(dt) {
   waterMat.envMapIntensity = env.waterEnv;
 }
 function setMode(name) {
+  if (!modeTargets[name]) return;
+  envMode = name;
   envTarget = modeTargets[name];
   document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === name));
 }
@@ -803,25 +826,103 @@ const jellies = [];
     made.userData.moonVisible = i < 16;
   }
 }/* ================= 悬浮海岛（倒三角锥 · 上宽下窄 · 悬浮于水中） ================= */
-const PROFILE = [[0, -5.2], [2.95, -5.15], [3.15, -5.05], [3.6, -4.6], [4.2, -3.9], [4.9, -3.0], [5.6, -2.0], [6.1, -1.0], [6.4, -0.1], [6.3, 0.35], [5.9, 0.8], [4.8, 1.25], [3.2, 1.55], [1.6, 1.66], [0, 1.7]];
+// B 方案：沙滩边缘由连续 Catmull-Rom 曲线生成，消除入水处梯级。
+function smoothBeachProfile(points) {
+  const curve = new THREE.CatmullRomCurve3(
+    points.map(p => new THREE.Vector3(p[0], p[1], 0)),
+    false, 'centripetal', .5
+  );
+  return curve.getPoints(280).map(p => new THREE.Vector2(Math.max(0, p.x), p.y));
+}
+const PROFILE = smoothBeachProfile([
+  [0, -5.2], [2.95, -5.15], [3.15, -5.05], [3.6, -4.6], [4.2, -3.9],
+  [4.9, -3.0], [5.8, -1.8], [6.25, -0.65], [6.72, -0.1], [7.02, -0.5],
+  [6.62, -0.02], [6.2, 0.30], [5.7, 0.62], [5.2, 0.95], [4.8, 1.25],
+  [3.2, 1.55], [1.6, 1.66], [0, 1.7]
+]);
+
+// 上表面高度表直接取自同一条 B 曲线，保证主角、建筑与沙滩贴合。
+const beachTopSurface = (() => {
+  let maxI = 0;
+  PROFILE.forEach((p, i) => { if (p.x > PROFILE[maxI].x) maxI = i; });
+  return PROFILE.slice(maxI).reverse().filter(p => p.x <= 6.68 && p.x >= 0);
+})();
+
+const baseGrassEdge = (() => {
+  const p = beachTopSurface.find(q => q.y <= .77);
+  return p ? p.x : 5.55;
+})();
+function grassBoundaryAt(angle) {
+  const wave = Math.sin(angle * 3 + 1.7) * .27
+    + Math.sin(angle * 7 + .8) * .18
+    + Math.sin(angle * 11 + 2.4) * .12
+    + Math.sin(angle * 17 + 4.1) * .07;
+  return baseGrassEdge + Math.max(0, wave) * .45;
+}
+function grassEdgeWidthAt(angle) {
+  return .20 + Math.sin(angle * 5 + 3.1) * .07 + Math.sin(angle * 9 + 1.1) * .04;
+}
+function isGrassSpot(angle, radius) {
+  return radius <= grassBoundaryAt(angle) - grassEdgeWidthAt(angle) - .05;
+}
+function beachColorAt(y, n, angle, radius) {
+  const grass = new THREE.Color(0x3f9440), grass2 = new THREE.Color(0x71c04e);
+  const sand = new THREE.Color(0xe8d29c), wet = new THREE.Color(0xc9a86e);
+  const rock = new THREE.Color(0x8a7a63), rock2 = new THREE.Color(0x6f6353), c = new THREE.Color();
+  const smooth = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
+  c.copy(rock).lerp(rock2, smooth(-5.2, -.8, y));
+  c.lerp(wet, smooth(-.8, -.15, y));
+  c.lerp(sand, smooth(-.15, .22, y));
+
+  // 草地/沙滩交界按方向不规则弯曲，但最靠近岛心的边界不会超过上一版位置，因此沙滩最大宽度不变。
+  const a = angle ?? 0, r = radius ?? 0;
+  const wave = Math.sin(a * 3 + 1.7) * .27
+    + Math.sin(a * 7 + .8) * .18
+    + Math.sin(a * 11 + 2.4) * .12
+    + Math.sin(a * 17 + 4.1) * .07;
+  const grassEdge = grassBoundaryAt(a);
+  const edgeWidth = grassEdgeWidthAt(a);
+  const insideGrass = 1 - smooth(grassEdge - edgeWidth, grassEdge + edgeWidth, r);
+  const aboveWet = smooth(.08, .38, y);
+  const grassMix = insideGrass * aboveWet;
+  const grassBlend = grass.clone().lerp(grass2, n);
+  c.lerp(grassBlend, grassMix);
+  c.offsetHSL(0, 0, (n - .5) * .035);
+  return c;
+}
 function topY(r) {
-  const T = [[0, 1.64], [1.6, 1.6], [3.2, 1.5], [4.8, 1.2], [5.7, 0.76], [6.05, 0.42]];
-  if (r >= 6.05) return 0.2;
-  for (let i = 0; i < T.length - 1; i++) {
-    if (r >= T[i][0] && r <= T[i + 1][0]) {
-      const t = (r - T[i][0]) / (T[i + 1][0] - T[i][0]);
-      return T[i][1] + (T[i + 1][1] - T[i][1]) * t;
+  if (r <= 0) return beachTopSurface[0].y - .055;
+  if (r >= beachTopSurface[beachTopSurface.length - 1].x) return -.14;
+  for (let i = 0; i < beachTopSurface.length - 1; i++) {
+    const a = beachTopSurface[i], b = beachTopSurface[i + 1];
+    if (r >= a.x && r <= b.x) {
+      const t = (r - a.x) / Math.max(.000001, b.x - a.x);
+      return a.y + (b.y - a.y) * t - .055;
     }
   }
-  return 2.28;
+  return beachTopSurface[beachTopSurface.length - 1].y - .055;
+}
+
+// 取渲染后的真实地表高度。
+// 地形顶点先生成“轮廓半径”，再按角度做径向起伏；
+// 因此从坐标反查高度时必须先把渲染半径反推回轮廓半径。
+function terrainSurfaceAt(x, z) {
+  const a = Math.atan2(z, x);
+  const renderedRadius = Math.hypot(x, z);
+  const radialBump = Math.sin(a * 4 + 1.3) * .06
+    + Math.sin(a * 7 + 4.2) * .045
+    + Math.sin(a * 11 + .7) * .03;
+  const shapeRadius = renderedRadius / (1 + radialBump);
+  return topY(shapeRadius) + .055 + Math.sin(a * 9 + 2.0) * .04;
 }
 
 const island = new THREE.Group();
 island.position.set(ISLAND_C.x, 0, ISLAND_C.y);
 scene.add(island);
 {
-  const pts = PROFILE.map(p => new THREE.Vector2(p[0], p[1]));
-  const g = new THREE.LatheGeometry(pts, 96);
+  // PROFILE 已经是平滑后的 THREE.Vector2 轮廓，必须直接复用。
+  const pts = PROFILE.map(p => p.clone());
+  const g = new THREE.LatheGeometry(pts, 220);
   const p = g.attributes.position, v = new THREE.Vector3();
   const colors = new Float32Array(p.count * 3);
   const cGrass = new THREE.Color(0x3f9440), cGrass2 = new THREE.Color(0x71c04e);
@@ -834,17 +935,13 @@ scene.add(island);
     const nr = r * (1 + bump);
     p.setXYZ(i, Math.cos(a) * nr, v.y + Math.sin(a * 9 + 2.0) * 0.04, Math.sin(a) * nr);
     const n = Math.abs(Math.sin(i * 12.9898) * 43758.5453 % 1);
-    if (v.y > 0.9) c.copy(cGrass).lerp(cGrass2, n);
-    else if (v.y > 0.6) c.copy(cSand).lerp(cGrass, (v.y - 0.6) / 0.3);
-    else if (v.y > 0.2) c.copy(cSand);
-    else if (v.y > -0.8) c.copy(cWet);
-    else c.copy(cRock).lerp(cRock2, Math.min(1, (-0.8 - v.y) / 4.4));
-    c.offsetHSL(0, 0, (n - 0.5) * 0.05);
+    c.copy(beachColorAt(v.y, n, a, nr));
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   g.computeVertexNormals();
   const isle = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 }));
+  window.__islandGround = isle;
   isle.castShadow = isle.receiveShadow = true;
   island.add(isle);
 }
@@ -870,7 +967,7 @@ const foamRings = [];
   for (let i = 0; i < 5; i++) {
     const a = rand() * Math.PI * 2, r = rr(1.6, 3.2);
     const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.16, 0.4)), rockMat);
-    rock.position.set(Math.cos(a) * r, topY(r) + 0.05, Math.sin(a) * r);
+    rock.position.set(Math.cos(a) * r, terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r) - .005, Math.sin(a) * r);
     rock.rotation.set(rand() * 3, rand() * 3, rand() * 3);
     rock.castShadow = true;
     island.add(rock);
@@ -979,7 +1076,7 @@ function makePalm(h) {
     if (da < 0.5) continue;
     const r = rr(4.0, 5.35);
     const palm = makePalm(rr(1.7, 2.6));
-    palm.position.set(Math.cos(a) * r, topY(r) - 0.04, Math.sin(a) * r);
+    palm.position.set(Math.cos(a) * r, terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r) - .09, Math.sin(a) * r);
     const houseAX = Math.cos(-0.22) * 4.35, houseAZ = Math.sin(-0.22) * 4.35;
     if (Math.hypot(palm.position.x - houseAX, palm.position.z - houseAZ) < 1.05) continue;
     palm.rotation.y = rand() * 7;
@@ -1001,19 +1098,39 @@ function makePalm(h) {
       s.castShadow = true;
       bush.add(s);
     }
-    bush.position.set(Math.cos(a) * r, topY(r) - 0.02, Math.sin(a) * r);
+    bush.position.set(Math.cos(a) * r, terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r) - .07, Math.sin(a) * r);
     island.add(bush);
   }
   const flowerCols = [0xff9ec4, 0xffd23e, 0xff6f5e];
-  for (let i = 0; i < 8; i++) {
-    const a = rand() * Math.PI * 2, r = rr(4.6, 5.7);
-    const fl = new THREE.Group();
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.24, 5), std(0x3d8a37));
-    stem.position.y = 0.12; fl.add(stem);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), std(flowerCols[i % 3]));
-    head.position.y = 0.27; fl.add(head);
-    fl.position.set(Math.cos(a) * r, topY(r), Math.sin(a) * r);
-    island.add(fl);
+  {
+    // 独立随机源：增加花朵数量不会改变后续岛屿物体的随机布局。
+    let seedF = 20771;
+    const flowerRand = () => {
+      seedF = (seedF * 16807) % 2147483647;
+      return seedF / 2147483647;
+    };
+    const placed = [];
+    let count = 0, guard = 0;
+    while (count < 40 && guard++ < 1200) {
+      const a = flowerRand() * Math.PI * 2;
+      const limit = grassBoundaryAt(a) - grassEdgeWidthAt(a) - .08;
+      const r = 2.8 + flowerRand() * Math.max(.4, limit - 2.8);
+      // 稍作分散，避免 40 朵挤成一团。
+      if (!placed.every(q => Math.hypot(q.x - Math.cos(a) * r, q.y - Math.sin(a) * r) > .26)) continue;
+
+      const fl = new THREE.Group();
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(.015, .02, .24, 5), std(0x3d8a37));
+      stem.position.y = .12; fl.add(stem);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(.07, 8, 6), std(flowerCols[count % 3]));
+      head.position.y = .27; head.castShadow = true; fl.add(head);
+      fl.position.set(Math.cos(a) * r, terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r) - .05, Math.sin(a) * r);
+      fl.rotation.y = flowerRand() * Math.PI * 2;
+      island.add(fl);
+      placed.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r));
+      count++;
+    }
+    // 维持原本全局随机序列，避免花朵数量变化影响其他场景物件。
+    for (let i = 0; i < 16; i++) rand();
   }
 }
 
@@ -1023,7 +1140,7 @@ function makePalm(h) {
   const perp = new THREE.Vector2(-dir.y, dir.x);
   const fr = 5.0, fl = 1.15;
   const fire = new THREE.Group();
-  fire.position.set(dir.x * fr + perp.x * fl, topY(fr) + 0.02, dir.y * fr + perp.y * fl);
+  fire.position.set(dir.x * fr + perp.x * fl, terrainSurfaceAt(dir.x * fr + perp.x * fl, dir.y * fr + perp.y * fl) + .02, dir.y * fr + perp.y * fl);
   const logMat = std(0x6e4a28);
   for (let i = 0; i < 3; i++) {
     const log = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.55, 6), logMat);
@@ -1063,7 +1180,7 @@ function makePalm(h) {
     const da = Math.abs(Math.atan2(Math.sin(a - PIER_A), Math.cos(a - PIER_A)));
     if (da < 0.55) continue;
     Q.setFromEuler(new THREE.Euler(rr(-0.25, 0.25), rand() * 7, rr(-0.25, 0.25)));
-    P.set(Math.cos(a) * r, topY(r) + 0.05, Math.sin(a) * r);
+    P.set(Math.cos(a) * r, terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r) + .05, Math.sin(a) * r);
     S.setScalar(rr(0.7, 1.5));
     M.compose(P, Q, S);
     blades.setMatrixAt(bi++, M);
@@ -1074,7 +1191,7 @@ function makePalm(h) {
   for (let i = 0; i < 26; i++) {
     const a = rand() * Math.PI * 2, r = rr(1.0, 4.9);
     const dot = new THREE.Mesh(new THREE.SphereGeometry(rr(0.035, 0.06), 8, 6), std(dotCols[i % 5], { roughness: 0.6 }));
-    dot.position.set(Math.cos(a) * r, topY(r) + 0.04, Math.sin(a) * r);
+    dot.position.set(Math.cos(a) * r, terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r) + .04, Math.sin(a) * r);
     island.add(dot);
   }
   const crab = new THREE.Group();
@@ -1106,7 +1223,7 @@ function makePalm(h) {
     crab.add(eyeB);
   }
   const ca = 1.9, crr = 5.8;
-  crab.position.set(Math.cos(ca) * crr, topY(crr) + 0.06, Math.sin(ca) * crr);
+  crab.position.set(Math.cos(ca) * crr, terrainSurfaceAt(Math.cos(ca) * crr, Math.sin(ca) * crr) + .06, Math.sin(ca) * crr);
   crab.rotation.y = rand() * 7;
   island.add(crab);
 }
@@ -1118,7 +1235,7 @@ function makePalm(h) {
     const da = Math.abs(Math.atan2(Math.sin(a - PIER_A), Math.cos(a - PIER_A)));
     if (da < 0.4) continue;
     const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.1, 0.26)), beachRockMat);
-    rock.position.set(Math.cos(a) * r, topY(r) + 0.02, Math.sin(a) * r);
+    rock.position.set(Math.cos(a) * r, terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r) + .02, Math.sin(a) * r);
     rock.rotation.set(rand() * 3, rand() * 3, rand() * 3);
     rock.castShadow = true;
     island.add(rock);
@@ -1129,7 +1246,7 @@ function makePalm(h) {
   const dir = new THREE.Vector2(Math.cos(PIER_A), Math.sin(PIER_A));
   const perp = new THREE.Vector2(-dir.y, dir.x);
   const fr = 5.0, fl = 2.15;
-  const sy = topY(fr);
+  const sy = terrainSurfaceAt(dir.x * fr + perp.x * fl, dir.y * fr + perp.y * fl) + .03;
   const sheep = new THREE.Group();
   const woolMat = std(0xf7f4ee, { roughness: 0.85 });
   const pinkMat = std(0xf6cdc9, { roughness: 0.8 });
@@ -1198,7 +1315,7 @@ function makePalm(h) {
   heartTip.position.y = 0.545;
   heartTip.rotation.x = Math.PI;
   sheep.add(heartL); sheep.add(heartR); sheep.add(heartTip);
-  sheep.position.set(dir.x * fr + perp.x * fl, sy + 0.05, dir.y * fr + perp.y * fl);
+  sheep.position.set(dir.x * fr + perp.x * fl, sy, dir.y * fr + perp.y * fl);
   sheep.rotation.y = Math.atan2(-dir.y, dir.x);
   sheep.userData.ry = sheep.rotation.y;
   sheep.userData.by = sheep.position.y;
@@ -1207,7 +1324,7 @@ function makePalm(h) {
 }
 
 const sheepTask = {
-  phase: 'idle', tree: null, timer: 0,
+  phase: 'idle', kind: 'free', tree: null, timer: 0,
   target: new THREE.Vector3(), home: new THREE.Vector3(),
   path: [], pathIndex: 0
 };
@@ -1301,11 +1418,10 @@ function planIslandPath(start, goal) {
   return path;
 }
 function setGroundTarget(target, x, z) {
-  target.set(x, topY(Math.hypot(x - ISLAND_C.x, z - ISLAND_C.y)) + .05, z);
+  target.set(x, terrainSurfaceAt(x, z) + .03, z);
 }
 function beginTreeTask(palm) {
-  // 主角必须在岛上；船上的点击不会触发陆地互动。
-  if (!sheepChar || sheepChar.parent !== island || voyage.mode !== 'island') return;
+  if (sleepState.active || !sheepChar || sheepChar.parent !== island || voyage.mode !== 'island') return;
   // 正在摇同一棵树时不重复打断，换目标则立即取消当前动作。
   if (sheepTask.phase === 'shake' && sheepTask.tree === palm) return;
 
@@ -1325,11 +1441,87 @@ function beginTreeTask(palm) {
   sheepTask.pathIndex = 0;
   setGroundTarget(sheepTask.target, sheepTask.path[0].x, sheepTask.path[0].y);
   sheepTask.tree = palm;
+  sheepTask.kind = 'tree';
   sheepTask.phase = 'walk';
   sheepTask.timer = 0;
   sheepTask.spawned = 0;
   sheepTask.cocoTimer = 0;
   sheepChar.rotation.z = 0;
+}
+
+const sleepOverlay = document.getElementById('sleep-overlay');
+const sleepText = document.getElementById('sleep-text');
+const sleepState = { active:false, phase:'idle', queue:[], timer:0, stageTimer:0, enterFrom:new THREE.Vector3(), enterTo:new THREE.Vector3() };
+function setSleepOverlay(active,text){sleepOverlay.classList.toggle('active',active);if(text)sleepText.textContent=text;}
+function requestSleep(){
+  if(sleepState.active||voyage.mode!=='island'||!sheepChar||sheepChar.parent!==island)return;
+  if(sheepTask.tree?.userData?.top)sheepTask.tree.userData.top.rotation.z=0;
+  if(!beginFreeWalk(houseEntryPoint.x,houseEntryPoint.z))return;
+  sleepState.queue = envMode === 'day' ? ['sunset','moon','dawn','day'] :
+    envMode === 'sunset' ? ['moon','dawn','day'] :
+    envMode === 'moon' ? ['dawn','day'] : ['day'];
+  sleepState.active=true;sleepState.phase='toHouse';sheepTask.kind='house';
+  setReturnButton('睡觉中',false);setVoyageStatus('主角正在回小屋睡觉……');
+}
+function finishSleep(){
+  sleepState.active=false;sleepState.phase='idle';sheepChar.visible=true;
+  sheepTask.kind='free';sheepTask.phase='idle';sheepTask.tree=null;sheepTask.path=[];sheepTask.pathIndex=0;
+  sheepTask.faceYaw=sheepChar.rotation.y;
+  setReturnButton('暂不可用',false);setVoyageStatus('☀️ 新的一天开始了');
+}
+function updateSleep(dt){
+  if(!sleepState.active)return;const st=sheepTask;
+  if(sleepState.phase==='enter'){
+    sleepState.timer-=dt;const k=Math.min(1,1-sleepState.timer/.58);const e=k*k*(3-2*k);
+    sheepChar.position.lerpVectors(sleepState.enterFrom,sleepState.enterTo,e);
+    sheepChar.position.y=terrainSurfaceAt(sheepChar.position.x,sheepChar.position.z)+.03;
+    if(sleepState.timer<=0){sheepChar.visible=false;sleepState.phase='fade';sleepState.timer=.45;setSleepOverlay(true,'时间正在流逝…');}
+    return;
+  }
+  if(sleepState.phase==='fade'){sleepState.timer-=dt;if(sleepState.timer<=0){sleepState.phase='advance';sleepState.stageTimer=.55;}return;}
+  if(sleepState.phase==='advance'){
+    sleepState.stageTimer-=dt;
+    if(sleepState.stageTimer<=0&&sleepState.queue.length){
+      const next=sleepState.queue.shift();setMode(next);
+      if(sleepState.queue.length){sleepState.stageTimer=1.15;sleepText.textContent=next==='sunset'?'黄昏过去…':next==='moon'?'夜晚过去…':'天色渐亮…';}
+      else{sleepState.phase='wake';sleepState.timer=.75;setSleepOverlay(true,'☀️ 天亮了…');}
+    }
+    return;
+  }
+  if(sleepState.phase==='wake'){
+    sleepState.timer-=dt;
+    if(sleepState.timer<=0){
+      setMode('day');sheepChar.visible=true;sheepChar.position.copy(houseDoorPoint);
+      sheepChar.rotation.set(0,Math.atan2(houseDoorPoint.x-houseGroup.position.x,houseDoorPoint.z-houseGroup.position.z),0);
+      st.faceYaw=sheepChar.rotation.y;st.kind='exit';st.phase='walk';
+      st.path=planIslandPath({x:houseDoorPoint.x,z:houseDoorPoint.z},{x:houseExitPoint.x,z:houseExitPoint.z});
+      st.pathIndex=0;setGroundTarget(st.target,st.path[0].x,st.path[0].y);
+      sleepState.phase='exitWalk';setSleepOverlay(false);
+    }
+  }
+}
+function isWalkableIslandPoint(x, z) {
+  if (Math.hypot(x, z) > 6.05) return false;
+  return islandObstacles.every(o => Math.hypot(x - o.x, z - o.z) >= o.r + .08);
+}
+function beginFreeWalk(x, z) {
+  if (sleepState.active || !sheepChar || sheepChar.parent !== island || voyage.mode !== 'island' || !isWalkableIslandPoint(x, z)) return false;
+
+  const previousTree = sheepTask.tree;
+  if (previousTree && previousTree.userData && previousTree.userData.top) {
+    previousTree.userData.top.rotation.z = 0;
+  }
+  sheepTask.path = planIslandPath({ x: sheepChar.position.x, z: sheepChar.position.z }, { x, z });
+  sheepTask.pathIndex = 0;
+  setGroundTarget(sheepTask.target, sheepTask.path[0].x, sheepTask.path[0].y);
+  sheepTask.tree = null;
+  sheepTask.kind = 'free';
+  sheepTask.phase = 'walk';
+  sheepTask.timer = 0;
+  sheepTask.spawned = 0;
+  sheepTask.cocoTimer = 0;
+  sheepChar.rotation.z = 0;
+  return true;
 }
   function spawnCoconut(palm) {
     const top = palm.userData.top;
@@ -1348,6 +1540,10 @@ function beginTreeTask(palm) {
   window.__spawnCoconut = spawnCoconut;
 
 const gullPerches = [];
+let houseGroup = null;
+const houseDoorPoint = new THREE.Vector3();
+const houseEntryPoint = new THREE.Vector3();
+const houseExitPoint = new THREE.Vector3();
 /* ================= 木栈桥（固定在岛上 · 短桥墩不落海床） ================= */
 {
   const dir = new THREE.Vector2(Math.cos(PIER_A), Math.sin(PIER_A));
@@ -1380,7 +1576,7 @@ const gullPerches = [];
 /* ================= 高脚小木屋 ================= */
 {
   const ha = -0.22, hr = 4.35;
-  const hy = topY(hr);
+  const hy = terrainSurfaceAt(Math.cos(ha) * hr, Math.sin(ha) * hr) - .08;
   const house = new THREE.Group();
   const woodMat = std(0x9c6b3e, { roughness: 0.8 });
   const darkWood = std(0x6e4a28, { roughness: 0.9 });
@@ -1435,15 +1631,23 @@ const gullPerches = [];
   house.position.set(Math.cos(ha) * hr, hy - 0.05, Math.sin(ha) * hr);
   house.rotation.y = -ha + Math.PI / 2;
   island.add(house);
+  houseGroup = house;
+  const front = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), house.rotation.y);
+  houseDoorPoint.copy(house.position).addScaledVector(front, 1.12);
+  houseEntryPoint.copy(house.position).addScaledVector(front, 1.38);
+  houseExitPoint.copy(house.position).addScaledVector(front, 1.82);
+  houseDoorPoint.y = terrainSurfaceAt(houseDoorPoint.x, houseDoorPoint.z) + .03;
+  houseEntryPoint.y = terrainSurfaceAt(houseEntryPoint.x, houseEntryPoint.z) + .03;
+  houseExitPoint.y = terrainSurfaceAt(houseExitPoint.x, houseExitPoint.z) + .03;
 }
 
 /* 山腰灌木 */
 {
   for (let i = 0; i < 4; i++) {
     const a = rand() * Math.PI * 2, r = rr(1.7, 3.1);
-    const ys = topY(r);
+    const ys = terrainSurfaceAt(Math.cos(a) * r, Math.sin(a) * r);
     const mb = new THREE.Mesh(new THREE.SphereGeometry(rr(0.18, 0.32), 8, 6), std(0x3c8f43, { flatShading: true }));
-    mb.position.set(Math.cos(a) * r, ys - 0.05, Math.sin(a) * r);
+    mb.position.set(Math.cos(a) * r, ys - .02, Math.sin(a) * r);
     mb.scale.y = 0.75;
     mb.castShadow = true;
     island.add(mb);
@@ -2149,7 +2353,7 @@ function returnToPier() {
 function disembark() {
   boat.remove(sheepChar);
   island.add(sheepChar);
-  sheepChar.position.set(pierBoard.x, topY(Math.hypot(pierBoard.x - ISLAND_C.x, pierBoard.y - ISLAND_C.y)) + .05, pierBoard.y);
+  sheepChar.position.set(pierBoard.x, terrainSurfaceAt(pierBoard.x, pierBoard.y) + .03, pierBoard.y);
   sheepChar.rotation.set(0, Math.atan2(-pierDir.y, pierDir.x), 0);
   // 保留原先在岛上的 idle 高度，避免回程结束被埋进地形。
   // 不改写原本的家；下船后先回到码头旁，再自动绕行返回篝火旁原位。
@@ -2208,7 +2412,7 @@ function updateVoyage(dt, t) {
       sheepChar.position.x += dx / dist * step;
       sheepChar.position.z += dz / dist * step;
       sheepChar.rotation.y = Math.atan2(dx, dz);
-      sheepChar.position.y = topY(Math.hypot(sheepChar.position.x - ISLAND_C.x, sheepChar.position.z - ISLAND_C.y)) + .05 + Math.abs(Math.sin(t * 8)) * .018;
+      sheepChar.position.y = terrainSurfaceAt(sheepChar.position.x, sheepChar.position.z) + .03 + Math.abs(Math.sin(t * 8)) * .018;
     } else {
       voyage.landPosition.copy(sheepChar.position);
       voyage.landRotationY = sheepChar.rotation.y;
@@ -2337,13 +2541,14 @@ btnRotate.addEventListener('click', () => {
   btnRotate.classList.toggle('on', controls.autoRotate);
   btnRotate.textContent = '自动旋转：' + (controls.autoRotate ? '开' : '关');
 });
-document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => { if (!sleepState.active) setMode(b.dataset.m); }));
 
 function feedAt(x, z, count) {
   for (let i = 0; i < count; i++) dropPellet(x + rr(-0.5, 0.5), z + rr(-0.5, 0.5));
   spawnRipple(x, z, 1.2);
 }
 document.getElementById('btn-feed').addEventListener('click', () => {
+  if (sleepState.active) return;
   const a = rand() * Math.PI * 2, r = rr(3, 5.5);
   feedAt(ISLAND_C.x + Math.cos(a) * r, ISLAND_C.y + Math.sin(a) * r, 6);
 });
@@ -2353,9 +2558,13 @@ const pointer = new THREE.Vector2();
 let downX = 0, downY = 0;
 renderer.domElement.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY; });
 renderer.domElement.addEventListener('pointerup', (e) => {
-  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+  if (sleepState.active || Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
   pointer.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
+  if (houseGroup) {
+    const houseHits = raycaster.intersectObject(houseGroup, true);
+    if (houseHits.length) { requestSleep(); return; }
+  }
   const gullHits = raycaster.intersectObjects(gulls, true);
   if (gullHits.length) {
     let bird = gullHits[0].object;
@@ -2376,6 +2585,13 @@ renderer.domElement.addEventListener('pointerup', (e) => {
       return;
     }
   }
+  const groundHits = raycaster.intersectObject(window.__islandGround, false);
+  if (groundHits.length) {
+    const local = island.worldToLocal(groundHits[0].point.clone());
+    beginFreeWalk(local.x, local.z);
+    // 命中岛面后不再触发水面投喂。
+    return;
+  }
   const hits = raycaster.intersectObject(water, false);
   if (hits.length) {
     const p = hits[0].point;
@@ -2394,7 +2610,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
     if (insideWater && clearOfIsland) feedAt(p.x, p.z, 6);
   }
 });
-document.getElementById('hint').textContent = '拖拽旋转 · 滚轮缩放 · 点击木船上船 · 点击海面航行/投喂';
+document.getElementById('hint').textContent = '拖拽旋转 · 滚轮缩放 · 点击岛面移动 · 点击树/小屋/船互动';
 
 /* ================= 动画 ================= */
 const clock = new THREE.Clock();
@@ -2412,6 +2628,7 @@ function animate() {
   causticsTex.offset.y = (t * 0.011) % 1;
   sandMat.emissiveIntensity = 0.65 + Math.sin(t * 1.8) * 0.15;
   stepEnv(dt);
+  updateSleep(dt);
   lampLight.intensity = env.lampI * (1 + Math.sin(t * 7.3) * 0.06);
   beamMat.opacity = env.beamO;
   fireLight.intensity = env.fireI * (0.85 + 0.15 * Math.sin(t * 11) * Math.sin(t * 5.7));
@@ -2458,9 +2675,10 @@ function animate() {
     u.nightHalo.material.opacity = nightHaloOn ? nightPulse * .62 : 0;
   }
 
-  if (sheepChar && voyage.mode !== 'toBoat' && sheepChar.parent !== boat) {
+  const sleepControlsPose = sleepState.active && ['enter','fade','advance','wake'].includes(sleepState.phase);
+  if (sheepChar && !sleepControlsPose && voyage.mode !== 'toBoat' && sheepChar.parent !== boat) {
     const st = sheepTask;
-    const groundY = topY(Math.hypot(sheepChar.position.x - ISLAND_C.x, sheepChar.position.z - ISLAND_C.y)) + 0.05;
+    const groundY = terrainSurfaceAt(sheepChar.position.x, sheepChar.position.z) + .03;
     if (st.phase === 'walk') {
       const dx = st.target.x - sheepChar.position.x, dz = st.target.z - sheepChar.position.z;
       const dist = Math.hypot(dx, dz), step = Math.min(dist, dt * 0.95);
@@ -2468,14 +2686,27 @@ function animate() {
         sheepChar.position.x += dx / dist * step;
         sheepChar.position.z += dz / dist * step;
         sheepChar.rotation.y = Math.atan2(dx, dz);
+        st.faceYaw = sheepChar.rotation.y;
       }
       sheepChar.position.y = groundY + Math.abs(Math.sin(t * 8.0)) * 0.018;
       if (dist < 0.10 && st.pathIndex < st.path.length - 1) {
         st.pathIndex++;
         setGroundTarget(st.target, st.path[st.pathIndex].x, st.path[st.pathIndex].y);
-      } else if (dist < 0.06 && st.pathIndex >= st.path.length - 1 && Math.hypot(sheepChar.position.x - st.tree.position.x, sheepChar.position.z - st.tree.position.z) < 1.05) {
-        st.phase = 'shake'; st.timer = 1.7; st.spawned = 0; st.cocoTimer = 0.28;
-        sheepChar.rotation.y = Math.atan2(st.tree.position.x - sheepChar.position.x, st.tree.position.z - sheepChar.position.z);
+      } else if (dist < 0.06 && st.pathIndex >= st.path.length - 1) {
+        if (st.kind === 'house') {
+          st.phase = 'enter'; sleepState.phase = 'enter'; sleepState.timer = .58;
+          sleepState.enterFrom.copy(sheepChar.position);
+          sleepState.enterTo.set(houseDoorPoint.x, houseDoorPoint.y, houseDoorPoint.z);
+          sheepChar.rotation.y = Math.atan2(houseDoorPoint.x - sheepChar.position.x, houseDoorPoint.z - sheepChar.position.z);
+        } else if (st.kind === 'exit') {
+          finishSleep();
+        } else if (st.kind === 'tree' && st.tree && Math.hypot(sheepChar.position.x - st.tree.position.x, sheepChar.position.z - st.tree.position.z) < 1.05) {
+          st.phase = 'shake'; st.timer = 1.7; st.spawned = 0; st.cocoTimer = 0.28;
+          sheepChar.rotation.y = Math.atan2(st.tree.position.x - sheepChar.position.x, st.tree.position.z - sheepChar.position.z);
+        } else {
+          st.faceYaw = sheepChar.rotation.y;
+          st.phase = 'idle'; st.kind = 'free'; st.tree = null; st.path = []; st.pathIndex = 0;
+        }
       }
     } else if (st.phase === 'shake') {
       st.timer -= dt; st.cocoTimer -= dt;
@@ -2510,8 +2741,10 @@ function animate() {
         st.phase = 'idle'; st.tree = null; st.path = []; st.pathIndex = 0;
       }
     } else {
-      sheepChar.position.y = sheepChar.userData.by + Math.sin(t * 2.2) * 0.012;
-      sheepChar.rotation.y = sheepChar.userData.ry + Math.sin(t * 0.6) * 0.1;
+      // 待机高度跟随当前位置；朝向保留最后一次行走方向。
+      const idleYaw = Number.isFinite(st.faceYaw) ? st.faceYaw : sheepChar.userData.ry;
+      sheepChar.position.y = terrainSurfaceAt(sheepChar.position.x, sheepChar.position.z) + .03 + Math.sin(t * 2.2) * .012;
+      sheepChar.rotation.y = idleYaw + Math.sin(t * 0.6) * .035;
     }
   }
 
@@ -2522,7 +2755,7 @@ function animate() {
       u.vy -= 7.2 * dt;
       c.position.x += u.vx * dt; c.position.y += u.vy * dt; c.position.z += u.vz * dt;
       c.rotation.x += u.rx * dt; c.rotation.z += u.rz * dt;
-      const cy = topY(Math.hypot(c.position.x - ISLAND_C.x, c.position.z - ISLAND_C.y)) + 0.09;
+      const cy = terrainSurfaceAt(c.position.x, c.position.z) + .09;
       if (c.position.y <= cy) {
         c.position.y = cy;
         if (Math.abs(u.vy) < 0.45) { u.vy = 0; u.vx *= 0.7; u.vz *= 0.7; u.rest = 3; }
