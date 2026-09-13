@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hkcyclops · 入口</title>
-<meta name="description" content="个人入口页：悬浮海岛 · 灯塔微缩水景，以及咚咚羊学习小屋。">
+<title>小米的悬浮海岛 · 学习屋</title>
+<meta name="description" content="小米的悬浮海岛与学习屋：三维悬浮海岛水景，以及咚咚羊学习小屋 · 四年级上学期每日作业工作台。">
 <meta name="theme-color" content="#04161F">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMEU0RjY4Ii8+PGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIzNyIgcnk9IjgiIGZpbGw9IiMwQTNDNTIiLz48cGF0aCBkPSJNNDAgODFMNDQuNSAzOEg1NS41TDYwIDgxWiIgZmlsbD0iI0Y2RjFFNyIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iMjgiIHI9IjkiIGZpbGw9IiNFOEEzM0QiLz48L3N2Zz4=">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMEU0RjY4Ii8+PGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIzNyIgcnk9IjgiIGZpbGw9IiMwQTNDNTIiLz48cGF0aCBkPSJNNDAgODFMNDQuNSAzOEg1NS41TDYwIDgxWiIgZmlsbD0iI0Y2RjFFNyIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iMjgiIHI9IjkiIGZpbGw9IiNFOEEzM0QiLz48L3N2Zz4=">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
@@ -103,7 +105,7 @@ body{
 
 .desc{
   margin:0;
-  max-width:30ch;
+  max-width:21em;
   font-size:15px;line-height:1.85;
 }
 .pane--island .desc{color:rgba(220,238,245,.8)}
@@ -126,13 +128,15 @@ body{
 .pane--study:focus-visible{outline-color:var(--seal)}
 
 .brand{
-  position:fixed;top:26px;left:7vw;z-index:4;
+  position:fixed;top:24px;left:7vw;z-index:4;
   margin:0;
+  display:flex;align-items:center;gap:9px;
   font-family:var(--f-mono);font-size:12px;font-weight:500;
-  letter-spacing:.28em;text-transform:uppercase;
-  color:rgba(220,238,245,.5);
-  pointer-events:none;
+  letter-spacing:.1em;
+  color:rgba(220,238,245,.62);
+  pointer-events:none;white-space:nowrap;
 }
+.brand__mark{display:block;width:17px;height:17px;flex:none}
 
 .sea{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none}
 .wave{
@@ -177,9 +181,10 @@ body{
   .pane--island .pane__inner{padding:88px 8vw 72px;justify-content:flex-start}
   .pane--study .pane__inner{padding:72px 8vw 88px;align-items:flex-start;text-align:left}
   .pane--study .rule{margin-left:0;background:linear-gradient(90deg,var(--seal),rgba(179,64,47,0))}
-  .pane--study .desc{max-width:32ch}
+  .pane--study .desc{max-width:21em}
   .pane--study .title{font-size:clamp(30px,8vw,44px)}
-  .brand{left:8vw;top:22px;color:rgba(220,238,245,.55)}
+  .brand{left:8vw;top:20px;color:rgba(220,238,245,.66);font-size:11.5px;letter-spacing:.06em}
+  .brand__mark{width:15px;height:15px}
   .grain{background-image:repeating-linear-gradient(0deg,rgba(36,31,26,.05) 0 1px,transparent 1px 26px)}
   .pane--study .desc{color:#5C5147}
 }
@@ -187,8 +192,16 @@ body{
 </head>
 <body>
 
-<h1 class="sr-only">hkcyclops 入口：悬浮海岛与咚咚羊学习小屋</h1>
-<p class="brand">hkcyclops</p>
+<h1 class="sr-only">小米的悬浮海岛 · 学习屋 —— 前往悬浮海岛，或前往咚咚羊学习小屋</h1>
+<p class="brand">
+  <svg class="brand__mark" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+    <rect width="100" height="100" rx="22" fill="#0E4F68"/>
+    <ellipse cx="50" cy="85" rx="37" ry="8" fill="#0A3C52"/>
+    <path d="M40 81L44.5 38H55.5L60 81Z" fill="#F6F1E7"/>
+    <circle cx="50" cy="28" r="9" fill="#E8A33D"/>
+    <rect x="1.5" y="1.5" width="97" height="97" rx="20.5" fill="none" stroke="#DCEEF5" stroke-opacity=".32" stroke-width="3"/>
+  </svg>小米的悬浮海岛 · 学习屋
+</p>
 
 <main class="split">
 
@@ -203,7 +216,7 @@ body{
       <span class="title">悬浮海岛</span>
       <span class="sub">灯塔 · 微缩水景</span>
       <hr class="rule">
-      <span class="desc">全部程序化生成的三维小岛。拖拽旋转、滚轮缩放，点击水面投喂鱼群。</span>
+      <span class="desc">Codex生成的三维小岛。拖拽旋转、滚轮缩放，点击水面投喂鱼群。</span>
       <span class="cta">进入海岛
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
