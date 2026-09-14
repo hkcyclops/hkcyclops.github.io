@@ -38,6 +38,10 @@
   #voyage-fill { display: block; width: 0%; height: 100%; border-radius: 99px; background: #14a06a; transition: width .12s linear; }
   #catch-list { list-style: none; margin: 0 0 8px; padding: 0; font-size: 12px; min-height: 20px; }
   #catch-list li { padding: 2px 0; border-top: 1px solid rgba(20,80,120,.08); opacity: .78; }
+  #btn-fish { width: 100%; border: 0; border-radius: 9px; padding: 9px 10px; margin-bottom: 7px;
+    font-size: 13px; cursor: pointer; background: #147bb3; color: #fff; font-family: inherit; transition: .15s; }
+  #btn-fish:hover { filter: brightness(1.08); }
+  #btn-fish:disabled { opacity: .45; cursor: not-allowed; filter: none; }
   #btn-return { width: 100%; border: 0; border-radius: 9px; padding: 7px 10px; font-size: 12px;
     cursor: pointer; background: rgba(20,123,179,.12); color: #14506e; font-family: inherit; transition: .15s; }
   #btn-return:hover { background: rgba(20,123,179,.2); }
@@ -79,6 +83,7 @@
     <h3>🎣 海上航行 · 钓鱼</h3>
     <div id="voyage-status">点击木船即可上船。</div>
     <div id="voyage-track"><i id="voyage-fill"></i></div>
+    <button id="btn-fish" disabled>🎣 到达钓点后可下竿</button>
     <ul id="catch-list"></ul>
     <button id="btn-return">⚓ 返航下船</button>
   </div>
@@ -2198,6 +2203,7 @@ function spawnRipple(x, z, scale = 1) {
 
 /* ================= 海上航行 · 钓鱼玩法 ================= */
 const voyageUI = {
+  fishButton: document.getElementById('btn-fish'),
   returnButton: document.getElementById('btn-return'),
   panel: document.getElementById('voyage-card'),
   status: document.getElementById('voyage-status'),
@@ -2213,6 +2219,7 @@ destinationMarker.position.y = .08;
 destinationMarker.visible = false;
 scene.add(destinationMarker);
 
+let fishingFloat, fishingLine, fishingFish;
 const fishingRod = new THREE.Group();
 {
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(.008, .013, .75, 6), std(0x7c5030, { roughness: .6 }));
@@ -2225,6 +2232,27 @@ const fishingRod = new THREE.Group();
   fishingRod.position.set(.44, .31, .02);
   fishingRod.visible = false;
   boat.add(fishingRod);
+
+  // 钓鱼小动画：红白浮标、鱼线和靠近的水下鱼影。
+  fishingFloat = new THREE.Group();
+  const floatTop = new THREE.Mesh(new THREE.SphereGeometry(.035, 10, 8), std(0xe23c3c, { roughness: .35 }));
+  floatTop.position.y = .022;
+  const floatBottom = new THREE.Mesh(new THREE.SphereGeometry(.032, 10, 8), std(0xf6f4ee, { roughness: .45 }));
+  floatBottom.position.y = -.018;
+  fishingFloat.add(floatTop, floatBottom);
+  fishingFloat.visible = false;
+  scene.add(fishingFloat);
+
+  const linePoints = [new THREE.Vector3(), new THREE.Vector3()];
+  const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+  fishingLine = new THREE.Line(lineGeometry, new THREE.LineBasicMaterial({ color: 0xf8f6ee, transparent: true, opacity: .68 }));
+  fishingLine.visible = false;
+  scene.add(fishingLine);
+
+  fishingFish = new THREE.Mesh(new THREE.SphereGeometry(.08, 12, 9), std(0x536b7d, { transparent: true, opacity: .55, roughness: .45 }));
+  fishingFish.scale.set(1.65, .62, .42);
+  fishingFish.visible = false;
+  scene.add(fishingFish);
 }
 
 const pierDir = new THREE.Vector2(Math.cos(PIER_A), Math.sin(PIER_A));
@@ -2243,6 +2271,16 @@ const voyage = {
   phaseTimer: 0,
   biteWindow: 0,
   biteElapsed: 0,
+  phaseTimer0: 2.2,
+  castTimer: 0,
+  bobber: new THREE.Vector2(),
+  fishAngle: 0,
+  endTimer: 0,
+  endSuccess: false,
+  phaseTimer0: 2.2,
+  castTimer: 0,
+  bobber: new THREE.Vector2(),
+  fishAngle: 0,
   landPosition: new THREE.Vector3(),
   landRotationY: 0,
   hasSailed: false
@@ -2272,6 +2310,10 @@ function setReturnButton(text, enabled) {
 }
 function setVoyageFill(v) {
   voyageUI.fill.style.width = Math.max(0, Math.min(100, v * 100)) + '%';
+}
+function setFishButton(text, enabled) {
+  voyageUI.fishButton.textContent = text;
+  voyageUI.fishButton.disabled = !enabled;
 }
 const fishTypes = [
   { name: '银鳞小鱼', emoji: '🐟', min: .18, max: .34, weight: 34 },
@@ -2304,30 +2346,28 @@ function addCatch() {
   return { name: f.name, size };
 }
 function beginFishing() {
+  if (voyage.mode !== 'fishReady') return;
   voyage.mode = 'fishing';
-  voyage.phaseTimer = rr(1.1, 3.2);
+  voyage.phaseTimer = rr(1.5, 3.6);
+  voyage.phaseTimer0 = voyage.phaseTimer;
   voyage.biteWindow = .82;
   voyage.biteElapsed = 0;
-  fishingRod.visible = true;
-  setVoyageButton('⏳ 等待咬钩…', false);
-  setReturnButton('返航中不可用', false);
-  setVoyageStatus('鱼线已下，保持安静……');
-  setVoyageFill(0);
+  voyage.castTimer = .55;
+  voyage.endTimer = 0;
+  voyage.bobber.set(boatPos.x + Math.cos(voyage.heading) * 1.28, boatPos.y - Math.sin(voyage.heading) * 1.28);
+  voyage.fishAngle = voyage.heading + Math.PI + (Math.random() < .5 ? -.75 : .75);
+  fishingRod.visible = true;fishingFloat.visible = true;fishingLine.visible = true;fishingFish.visible = true;
+  setFishButton('⏳ 等待咬钩…', false);setReturnButton('钓鱼中', false);
+  setVoyageStatus('抛竿成功，鱼线已入水……');setVoyageFill(.1);
 }
 function endFishing(success) {
-  fishingRod.visible = false;
-  const p = boatPos;
+  const p = boatPos;voyage.mode = 'fishReady';voyage.endTimer = .72;voyage.endSuccess = success;
+  setFishButton(success ? '🎉 收竿中…' : '🐟 鱼跑掉了…', false);
   if (success) {
-    const fish = addCatch();
-    setVoyageStatus(`钓到了 ${fish.name}！可以继续换点，或返航下船。`);
+    const fish = addCatch();setVoyageStatus(`钓到了 ${fish.name}！可以继续换点，或返航下船。`);
     spawnRipple(p.x + Math.cos(voyage.heading) * 1.2, p.y - Math.sin(voyage.heading) * 1.2, 1.1);
-  } else {
-    setVoyageStatus('鱼儿脱钩跑了……可以再试一次。');
-  }
-  voyage.mode = 'fishReady';
-  setVoyageButton('🎣 再下竿', true);
-  setReturnButton('⚓ 返航下船', true);
-  setVoyageFill(0);
+  } else setVoyageStatus('鱼儿脱钩跑了……可以再试一次。');
+  setReturnButton('⚓ 返航下船', true);setVoyageFill(0);
 }
 function startSailTo(x, z) {
   voyage.target.set(x, z);
@@ -2335,10 +2375,9 @@ function startSailTo(x, z) {
   destinationMarker.visible = true;
   voyage.mode = 'sail';
   voyage.hasSailed = true;
-  voyage.phaseTimer = 0;
-  voyage.biteElapsed = 0;
-  fishingRod.visible = false;
-  setVoyageButton('⛵ 航行中…', false);
+  voyage.phaseTimer = 0;voyage.biteElapsed = 0;voyage.endTimer = 0;
+  fishingRod.visible = false;fishingFloat.visible = false;fishingLine.visible = false;fishingFish.visible = false;
+  setFishButton('🎣 钓鱼', false);setVoyageButton('⛵ 航行中…', false);
   setReturnButton('⚓ 取消并返航', true);
   setVoyageStatus('正在驶向标记的海域……');
   setVoyageFill(0);
@@ -2363,7 +2402,7 @@ function disembark() {
   sheepTask.phase = 'return'; sheepTask.tree = null;
   voyage.mode = 'island';
   voyage.hasSailed = false;
-  fishingRod.visible = false;
+  fishingRod.visible = false;fishingFloat.visible = false;fishingLine.visible = false;fishingFish.visible = false;
   destinationMarker.visible = false;
   hideVoyagePanel();
   setVoyageButton('🚤 再上船', true);
@@ -2392,6 +2431,10 @@ function requestBoardBoat() {
   setReturnButton('暂不可用', false);
   setVoyageStatus('主角正在走向码头……');
 }
+voyageUI.fishButton.addEventListener('click', () => {
+  if (voyage.mode === 'fishReady' && voyage.endTimer <= 0) beginFishing();
+  else if (voyage.mode === 'bite') endFishing(true);
+});
 voyageUI.returnButton.addEventListener('click', () => {
   if (voyage.mode === 'docked') {
     disembark();
@@ -2402,6 +2445,75 @@ voyageUI.returnButton.addEventListener('click', () => {
     returnToPier();
   }
 });
+const fishingRodTip = new THREE.Vector3();
+function updateFishingAnimation(dt, t) {
+  if (!fishingFloat || !fishingLine || !fishingFish) return;
+
+  if (voyage.endTimer > 0) {
+    voyage.endTimer = Math.max(0, voyage.endTimer - dt);
+    const k = 1 - voyage.endTimer / .72;
+    const bx = voyage.bobber.x, bz = voyage.bobber.y;
+    if (voyage.endSuccess) {
+      const tx = boatPos.x + Math.cos(voyage.heading) * .28;
+      const tz = boatPos.y - Math.sin(voyage.heading) * .28;
+      fishingFloat.position.set(bx + (tx - bx) * k, waveH(bx, bz, t) * .5 + .04 + k * .22, bz + (tz - bz) * k);
+      fishingFish.position.set(bx + (tx - bx) * Math.min(1, k * 1.25), -.08 + k * .25, bz + (tz - bz) * Math.min(1, k * 1.25));
+      fishingFish.rotation.y = voyage.heading + Math.sin(t * 18) * .35;
+    } else {
+      const dx = Math.cos(voyage.fishAngle) * (0.1 + k * .75);
+      const dz = -Math.sin(voyage.fishAngle) * (0.1 + k * .75);
+      fishingFish.position.set(bx + dx, -.16 + Math.sin(t * 12) * .03, bz + dz);
+      fishingFish.rotation.y = voyage.fishAngle + Math.sin(t * 14) * .4;
+    }
+    if (voyage.endTimer <= 0) {
+      fishingFloat.visible = false; fishingLine.visible = false; fishingFish.visible = false;
+      setFishButton('🎣 再下竿', true);
+    }
+  }
+
+  if (!fishingFloat.visible) return;
+
+  const bx = voyage.bobber.x, bz = voyage.bobber.y;
+  if (voyage.castTimer > 0) {
+    voyage.castTimer = Math.max(0, voyage.castTimer - dt);
+    const k = 1 - voyage.castTimer / .55;
+    fishingRodTip.set(.44, .48, .02);
+    fishingRod.localToWorld(fishingRodTip);
+    fishingFloat.position.lerpVectors(fishingRodTip, new THREE.Vector3(bx, .03, bz), k);
+    fishingFloat.position.y += Math.sin(k * Math.PI) * .25;
+    if (voyage.castTimer <= 0) spawnRipple(bx, bz, .65);
+  } else {
+    const bobbing = Math.sin(t * 2.8) * .014;
+    const biteJump = voyage.mode === 'bite' ? Math.abs(Math.sin(t * 22)) * .07 : 0;
+    fishingFloat.position.set(bx, waveH(bx, bz, t) * .55 + .03 + bobbing + biteJump, bz);
+  }
+
+  if (fishingFish.visible) {
+    if (voyage.mode === 'fishing') {
+      const progress = 1 - Math.min(1, voyage.phaseTimer / Math.max(.01, voyage.phaseTimer0));
+      const dist = .78 * (1 - progress) + .09;
+      const fx = bx + Math.cos(voyage.fishAngle) * dist;
+      const fz = bz - Math.sin(voyage.fishAngle) * dist;
+      fishingFish.position.set(fx, -.15 + Math.sin(t * 5 + progress * 7) * .025, fz);
+      fishingFish.rotation.y = voyage.fishAngle + Math.sin(t * 6) * .25;
+    } else if (voyage.mode === 'bite') {
+      fishingFish.position.set(bx + Math.cos(voyage.fishAngle) * .09, -.10 + Math.sin(t * 25) * .025, bz - Math.sin(voyage.fishAngle) * .09);
+      fishingFish.rotation.y = voyage.fishAngle + Math.sin(t * 24) * .5;
+    }
+  }
+
+  fishingRod.rotation.z = -.03 + Math.sin(t * 1.5) * .022
+    - (voyage.mode === 'bite' ? Math.sin(t * 24) * .08 : 0)
+    - (voyage.endTimer > 0 && voyage.endSuccess ? (1 - voyage.endTimer / .72) * .22 : 0);
+
+  fishingRodTip.set(.44, .48, .02);
+  fishingRod.localToWorld(fishingRodTip);
+  const lp = fishingLine.geometry.attributes.position;
+  lp.setXYZ(0, fishingRodTip.x, fishingRodTip.y, fishingRodTip.z);
+  lp.setXYZ(1, fishingFloat.position.x, fishingFloat.position.y + .02, fishingFloat.position.z);
+  lp.needsUpdate = true;
+}
+
 function updateVoyage(dt, t) {
   if (voyage.mode === 'toBoat') {
     const dx = pierBoard.x - sheepChar.position.x;
@@ -2453,9 +2565,9 @@ function updateVoyage(dt, t) {
         setVoyageStatus('回到码头了。可以下船，或另选海域。');
       } else {
         voyage.mode = 'fishReady';
-        setVoyageButton('🎣 下竿钓鱼', true);
+        setFishButton('🎣 下竿钓鱼', true);
         setReturnButton('⚓ 返航下船', true);
-        setVoyageStatus('已到钓点！准备下竿。');
+        setVoyageStatus('已到钓点！点击下竿开始钓鱼。');
       }
     }
   } else if (voyage.mode === 'docked') {
@@ -2466,7 +2578,7 @@ function updateVoyage(dt, t) {
     if (voyage.phaseTimer <= 0) {
       voyage.mode = 'bite';
       voyage.biteElapsed = 0;
-      setVoyageButton('🎣 拉竿！', true);
+      setFishButton('🎣 拉竿！', true);
       setVoyageStatus('咬钩了！立刻拉竿！');
       spawnRipple(boatPos.x + rr(-1.0, 1.0), boatPos.y + rr(-1.0, 1.0), .8);
     }
@@ -2485,6 +2597,7 @@ function updateVoyage(dt, t) {
   const wavePitch = (waveH(boatPos.x, boatPos.y + .7, t) - waveH(boatPos.x, boatPos.y - .7, t)) * .22;
   boat.rotation.z = waveRoll + Math.sin(t * 1.1) * .02 + voyage.speed * .015;
   boat.rotation.x = wavePitch - voyage.speed * .018;
+  updateFishingAnimation(dt, t);
 
   if (voyage.mode === 'sail' || voyage.mode === 'return') {
     const sternX = boatPos.x - Math.cos(voyage.heading) * 1.15;
