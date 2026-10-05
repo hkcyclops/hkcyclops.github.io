@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>深圳退租水电燃气结算计算器 v1.1</title>
+<title>深圳退租水电燃气结算计算器 v1.2</title>
 <style>
   :root{
     --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb;
@@ -105,7 +105,7 @@
 <div class="wrap">
 
 <header>
-  <h1>深圳退租水电燃气结算计算器 <span style="font-size:13px; opacity:.8;">v1.1</span></h1>
+  <h1>深圳退租水电燃气结算计算器 <span style="font-size:13px; opacity:.8;">v1.2</span></h1>
   <p>深圳住宅费率（一户一表/合表）· 水电燃气阶梯 · 按抄表周期内自然月分段，夏/冬季费率自动切换 · 含自来水+污水处理费+垃圾处理费 · 电价含政府性基金及附加<br>
   费率来源：深发改〔2025〕354号（水）、深圳市居民生活电价价目表（电）、深发改〔2017〕1063号（垃圾处理费）、深发改〔2022〕607号（燃气）</p>
 </header>
@@ -186,11 +186,11 @@
     <div class="grid g3">
       <div class="rategrp">
         <h3>💧 水费（元/m³，到户总价）</h3>
-        <label>一档价（0–22m³/月·户）</label><input id="rw1" type="number" step="0.0001" value="4.201">
-        <label>二档价（22–30m³）</label><input id="rw2" type="number" step="0.0001" value="6.571">
-        <label>三档价（30m³以上）</label><input id="rw3" type="number" step="0.0001" value="12.881">
-        <label>合表水价（自来水3.57+污水1.18+垃圾0.531）</label><input id="rwf" type="number" step="0.0001" value="5.281">
-        <label>垃圾处理费单价（元/m³，含90%折算）</label><input id="rwt" type="number" step="0.0001" value="0.531">
+        <label>一档价（0–22m³/月·户）</label><input id="rw1" type="number" step="0.0001" value="4.26">
+        <label>二档价（22–30m³）</label><input id="rw2" type="number" step="0.0001" value="6.63">
+        <label>三档价（30m³以上）</label><input id="rw3" type="number" step="0.0001" value="12.94">
+        <label>合表水价（自来水3.57+污水1.18+垃圾0.59）</label><input id="rwf" type="number" step="0.0001" value="5.34">
+        <label>垃圾处理费单价（元/m³）</label><input id="rwt" type="number" step="0.0001" value="0.59">
       </div>
       <div class="rategrp">
         <h3>⚡ 电费（元/kWh，到户总价）</h3>
@@ -209,7 +209,7 @@
     </div>
     <div class="note">
       <b>费率口径（均已含到户附加，即账单实收价）：</b><br>
-      💧 水：自来水价 2.67/4.54/9.35 + 污水处理费 1.00/1.50/3.00（深发改〔2025〕354号，2025-07-01 起）+ 垃圾处理费 0.531（=0.59×90%排污水量折算，深发改〔2017〕1063号）→ 4.201/6.571/12.881 元/m³；合表 3.57+1.18+0.531=5.281。<br>
+      💧 水：自来水价 2.67/4.54/9.35 + 污水处理费 1.00/1.50/3.00（深发改〔2025〕354号，2025-07-01 起）+ 垃圾处理费 <b>0.59</b>（深发改〔2017〕1063号，按用水量计收）→ <b>4.26/6.63/12.94 元/m³</b>；合表 3.57+1.18+0.59=5.34。<br>
       ⚡ 电：电度电价 0.6542/0.7042/0.9542 + 政府性基金及附加 0.00866875（国家重大水利 0.196875 + 大中型水库移民 0.62 + 小型水库移民 0.05 分/kWh）→ <b>0.6629/0.7129/0.9629 元/kWh</b>（含税，到户总价）；合表 0.6912+0.00866875=0.6999。<br>
       🔥 燃气：3.41/3.91/5.16 元/m³（深发改〔2022〕607号，管道天然气）。<br>
       <b>阶梯档位（按月）：</b>水 0–22–30 m³；电 夏季(5–10月) 0–260–600 / 非夏季 0–200–400 kWh；燃气 夏季一档0–30、二档30–35 / 冬季(11–4月)一档0–40、二档40–45 m³。<br>
@@ -253,9 +253,9 @@
 <script>
 "use strict";
 // 默认费率（到户总价口径，含各项政府性基金及附加）
-// 水 4.201/6.571/12.881 = 自来水2.67/4.54/9.35 + 污水1.00/1.50/3.00 + 垃圾0.531(0.59×90%)
+// 水 4.26/6.63/12.94 = 自来水2.67/4.54/9.35 + 污水1.00/1.50/3.00 + 垃圾0.59（按用水量计收，不折算）
 // 电 0.6629/0.7129/0.9629 = 电度电价0.6542/0.7042/0.9542 + 基金附加0.00866875
-const DEFAULTS = {rw1:4.201, rw2:6.571, rw3:12.881, rwf:5.281, rwt:0.531, re1:0.6629, re2:0.7129, re3:0.9629, ref:0.6999, rFund:0.00866875, rg1:3.41, rg2:3.91, rg3:5.16};
+const DEFAULTS = {rw1:4.26, rw2:6.63, rw3:12.94, rwf:5.34, rwt:0.59, re1:0.6629, re2:0.7129, re3:0.9629, ref:0.6999, rFund:0.00866875, rg1:3.41, rg2:3.91, rg3:5.16};
 const $ = id => document.getElementById(id);
 const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? null : v; };
 const fmt = (n,d=2) => n.toLocaleString("zh-CN",{minimumFractionDigits:d, maximumFractionDigits:d});
@@ -372,9 +372,9 @@ function calcUtility(kind, prev, curr, segs, persons, paid){
   return {usage, cost, rows, unit, net};
 }
 
-// 水费明细：把「垃圾处理费」从到户总价里单独拆出来列示（计价口径：用量 × 90% × 0.59）
+// 水费明细：把「垃圾处理费」从到户总价里单独拆出来列示（计价口径：用水量 × 0.59）
 function splitWaterRows(rows, usage){
-  const fee = num("rwt") || 0;              // 元/m³（已含 90% 折算）
+  const fee = num("rwt") || 0;              // 元/m³（按用水量计收）
   if(fee <= 0 || !rows.length) return rows;
   const out = [];
   for(const r of rows){
@@ -385,7 +385,7 @@ function splitWaterRows(rows, usage){
     out.push({label:r.label, cost:r.cost});
     if(share > 0){
       out.push({
-        label:`　↳ 其中：垃圾处理费 ${fee.toFixed(4)} 元/m³ × ${fmt(share)} m³（=用水量×90%×0.59）`,
+        label:`　↳ 其中：垃圾处理费 ${fee.toFixed(4)} 元/m³ × ${fmt(share)} m³`,
         cost:garbage, sub:true
       });
     }
@@ -439,7 +439,7 @@ function calc(){
           const fee = num("rwt") || 0;
           if(fee > 0 && $("userType").value !== "flat"){
             const g = r.usage * fee;
-            garbageNote = `<div class="uusage" style="margin-top:4px;">其中 <b>垃圾处理费 ¥${fmt(g)}</b>（${fmt(r.usage)} m³ × ${fee.toFixed(4)} 元/m³，含 90% 排污水量折算）</div>`;
+            garbageNote = `<div class="uusage" style="margin-top:4px;">其中 <b>垃圾处理费 ¥${fmt(g)}</b>（${fmt(r.usage)} m³ × ${fee.toFixed(4)} 元/m³）</div>`;
           }
         }
         const netLine = (paid !== null && paid !== 0)
